@@ -4,12 +4,9 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class NumericPatternsTest {
 
-    private static final Integer[] SEQUENCE = ArrayUtils.toObject(new int[] {2, 15, 42, 42, 15});
+    static final Integer[] SEQUENCE = ArrayUtils.toObject(new int[] {2, 15, 42, 42, 15});
 
     @Test
     public void shouldMatchSequence() {
@@ -65,24 +62,5 @@ public class NumericPatternsTest {
                 .token(42)
                 .build();
         Assert.assertFalse(nonMatchingPattern.matcher(SEQUENCE).find());
-    }
-
-    @Test
-    public void shouldProcessSerialMatches() {
-        Matcher<Integer> matcher = GenericPattern
-                .<Integer>instance()
-                .token(num -> num % 10 == 2)
-                .matcher(SEQUENCE);
-
-        List<Integer> hits = new ArrayList<>();
-        while (matcher.find()) {
-            Assert.assertNotNull(matcher.getGroups());
-            int hit = matcher.getGroups().get(0).getHits(SEQUENCE).get(0);
-            hits.add(hit);
-        }
-        Assert.assertEquals(3, hits.size());
-        Assert.assertEquals(2, (int) hits.get(0));
-        Assert.assertEquals(42, (int) hits.get(1));
-        Assert.assertEquals(42, (int) hits.get(2));
     }
 }

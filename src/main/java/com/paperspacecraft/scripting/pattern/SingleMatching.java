@@ -36,10 +36,10 @@ class SingleMatching<T> extends QuantifiedMatching<T> {
      * {@inheritDoc}
      */
     @Override
-    MatchingResult findOne(List<T> items, int position) {
+    Match findOne(List<T> items, int position) {
         return position < items.size() && predicate.test(items.get(position))
-            ? MatchingResult.success(1)
-            : MatchingResult.fail();
+            ? Match.success(position, position + 1)
+            : Match.fail();
     }
 
     /**

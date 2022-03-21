@@ -5,7 +5,9 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Assert;
 
+import java.util.List;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 class PseudoRegexTestsHelper {
 
@@ -30,6 +32,14 @@ class PseudoRegexTestsHelper {
         Assert.assertFalse(Pattern.compile(regexPattern).matcher(testCase).find());
         Matcher<Character> matcher = getMatcher(regexPattern, testCase);
         Assert.assertFalse(matcher.find());
+    }
+
+    public static void assertReplacement(String testCase, String regexPattern, String replacement, String result) {
+        Assert.assertEquals(result, Pattern.compile(regexPattern).matcher(testCase).replaceAll(replacement));
+        Matcher<Character> matcher = getMatcher(regexPattern, testCase);
+        Character[] characterArray = ArrayUtils.toObject(replacement.toCharArray());
+        List<Character> resultArray = matcher.replaceWithList(characterArray);
+        Assert.assertEquals(result, resultArray.stream().map(String::valueOf).collect(Collectors.joining()));
     }
 
     private static GenericPattern<Character> getPattern(String value) {

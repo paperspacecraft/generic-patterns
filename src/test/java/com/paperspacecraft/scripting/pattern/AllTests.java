@@ -8,7 +8,8 @@ import org.junit.runners.Suite;
         GenericPatternTest.class,
         NumericPatternsTest.class,
         PseudoRegexPatternsTest.class,
-        PseudoRegexGroupsTest.class
+        PseudoRegexGroupsTest.class,
+        MatcherTest.class
 })
 public class AllTests {
 }

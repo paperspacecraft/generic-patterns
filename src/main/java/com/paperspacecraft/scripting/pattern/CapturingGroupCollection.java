@@ -30,16 +30,16 @@ class CapturingGroupCollection {
 
     /**
      * Adds a new capturing group to the collection. Does nothing if the {@code enabled} flag was set to {@code false}
-     * @param iteration      Numeric value that specifies whether this operation is performed for the first type in the
-     *                       ongoing matching routine or it is a repetitive run. This is important to know because if
-     *                       several group instances originate from the same pattern element (e.g., in RegExp {@code
-     *                       /(ab)+/.test("ababab")} there are effectively three groups), we only need to store the last
-     *                       one, per the RegExp standard
-     * @param startPosition  The start position (inclusive) of the group in the given sequence
-     * @param endPosition    The end position (exclusive) of the group in the given sequence
-     * @param matchingResult {@link MatchingResult} object used as the source of secondary/nested capturing groups
+     * @param iteration     Numeric value that specifies whether this operation is performed for the first type in the
+     *                      ongoing matching routine or it is a repetitive run. This is important to know because if
+     *                      several group instances originate from the same pattern element (e.g., in RegExp {@code
+     *                      /(ab)+/.test("ababab")} there are effectively three groups), we only need to store the last
+     *                      one, per the RegExp standard
+     * @param startPosition The start position (inclusive) of the group in the given sequence
+     * @param endPosition   The end position (exclusive) of the group in the given sequence
+     * @param match         {@link Match} object used as the source of secondary/nested capturing groups
      */
-    public void add(int iteration, int startPosition, int endPosition, MatchingResult matchingResult) {
+    public void add(int iteration, int startPosition, int endPosition, Match match) {
         if (!enabled) {
             return;
         }
@@ -58,8 +58,8 @@ class CapturingGroupCollection {
         previousStartPosition = startPosition;
         previousEndPosition = endPosition;
         groups.add(new CapturingGroup(startPosition, endPosition));
-        if (CollectionUtils.isNotEmpty(matchingResult.getGroups())) {
-            groups.addAll(matchingResult.getGroups());
+        if (CollectionUtils.isNotEmpty(match.getGroups())) {
+            groups.addAll(match.getGroups());
         }
     }
 
