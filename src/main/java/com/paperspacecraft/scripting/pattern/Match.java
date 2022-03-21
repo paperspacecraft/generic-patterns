@@ -22,24 +22,26 @@ import java.util.List;
 /**
  * Represents the result of a singular matching operation
  */
-class MatchingResult {
+public class Match {
 
-    private static final MatchingResult SUCCESS_DEFAULT = MatchingResult.success(0);
-    private static final MatchingResult FAIL = new MatchingResult(false, -1);
+    private static final Match FAIL = new Match(false, -1, -1);
 
     private final boolean success;
-    private final int size;
+    private final int start;
+    private final int end;
 
     private List<CapturingGroup> groups;
 
     /**
      * Instance constructor
-     * @param success Flag indicating whether this is a successful matching
-     * @param size Size of the matching
+     * @param success Flag indicating whether this is a successful match
+     * @param start   Start position of the match
+     * @param end     End position of the match
      */
-    private MatchingResult(boolean success, int size) {
+    private Match(boolean success, int start, int end) {
         this.success = success;
-        this.size = size;
+        this.start = start;
+        this.end = end;
     }
 
     /* ---------
@@ -47,7 +49,7 @@ class MatchingResult {
        --------- */
 
     /**
-     * Gets whether the matching was found
+     * Gets whether the match was found
      * @return True or false
      */
     public boolean isSuccess() {
@@ -55,15 +57,31 @@ class MatchingResult {
     }
 
     /**
+     * Retrieves the starting position of this match
+     * @return Int value
+     */
+    public int getStart() {
+        return start;
+    }
+
+    /**
+     * Retrieves the end position of this match
+     * @return Int value
+     */
+    public int getEnd() {
+        return end;
+    }
+
+    /**
      * Gets the length of the matched sub-sequence
      * @return True or false
      */
     public int getSize() {
-        return size;
+        return end - start;
     }
 
     /**
-     * Retrieves the captured groups associated with the current matching
+     * Retrieves the capturing groups associated with the current match
      * @return {@code List} object; might be null
      */
     @Nullable
@@ -72,11 +90,33 @@ class MatchingResult {
     }
 
     /**
+     * Retrieves a capturing group by index
+     * @param index Index of the group in the collection
+     * @return {@link CapturingGroup} object; might be null
+     */
+    @Nullable
+    public CapturingGroup getGroup(int index) {
+        return groups != null && index >= 0 && index < groups.size() ? groups.get(index) : null;
+    }
+
+    /**
+     * Retrieves the sublist containing matched items
+     * @return {@code List} object; null can be returned if no match is found
+     */
+    @Nullable
+    public <T> List<T> getHits(List<T> items) {
+        if (getStart() < 0 || getSize() <= 0 || CollectionUtils.isEmpty(items)) {
+            return null;
+        }
+        return items.subList(start, end);
+    }
+
+    /**
      * Assigns the list of capturing groups to this instance in a builder-like manner
      * @param value {@code List} object
      * @return This instance
      */
-    public MatchingResult withGroups(List<CapturingGroup> value) {
+    Match withGroups(List<CapturingGroup> value) {
         if (!isSuccess() || CollectionUtils.isEmpty(value)) {
             return this;
         }
@@ -88,16 +128,16 @@ class MatchingResult {
     }
 
     /**
-     * Assigns another {@link MatchingResult} into the current instance in a builder-like manner
-     * @param other {@code MatchingResult} object
+     * Assigns another {@link Match} into the current instance in a builder-like manner
+     * @param other {@code Match} object
      * @return This instance
      */
-    public MatchingResult and(MatchingResult other) {
+    Match and(Match other) {
         if (other == null) {
             return this;
         }
         if (success && other.success) {
-            MatchingResult result = success(size + other.size);
+            Match result = success(Math.min(this.start, other.start), Math.max(this.end, other.end));
             if (groups != null) {
                 result.groups = groups;
             }
@@ -116,27 +156,29 @@ class MatchingResult {
        --------------- */
 
     /**
-     * Retrieves the zero-sized successful matching result
-     * @return {@link MatchingResult} instance
+     * Retrieves the zero-sized successful match
+     * @param start Start position of the match
+     * @return {@link Match} instance
      */
-    public static MatchingResult success() {
-        return SUCCESS_DEFAULT;
+    static Match success(int start) {
+        return new Match(true, start, start);
     }
 
     /**
-     * Retrieves a successful matching result of the provided size
-     * @param size The reported size of the matching result
-     * @return {@link MatchingResult} instance
+     * Retrieves a successful match starting as ths given position with the provided size
+     * @param start Start position of the match
+     * @param end   End position of the match
+     * @return {@link Match} instance
      */
-    public static MatchingResult success(int size) {
-        return new MatchingResult(true, size);
+    static Match success(int start, int end) {
+        return new Match(true, start, end);
     }
 
     /**
-     * Retrieves a non-successful matching result
-     * @return {@link MatchingResult} instance
+     * Retrieves a non-successful match
+     * @return {@link Match} instance
      */
-    public static MatchingResult fail() {
+    static Match fail() {
         return FAIL;
     }
 }

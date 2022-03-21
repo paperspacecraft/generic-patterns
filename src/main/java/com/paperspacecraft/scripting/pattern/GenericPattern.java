@@ -78,27 +78,27 @@ public abstract class GenericPattern<T> {
     }
 
     /**
-     * Retrieves a {@link MatchingResult} object characterizing whether the given sequence fits in the patter if started
+     * Retrieves a {@link Match} object characterizing whether the given sequence fits in the patter if started
      * from the given position
      * @param items    The sequence to which the pattern is applied; an arbitrary-typed collection
      * @param position The position from which to start probing for the pattern
      * @return {@code MatchingResult} object
      */
-    final MatchingResult getResult(List<T> items, int position) {
+    final Match getMatch(List<T> items, int position) {
         if (items == null || position >= items.size()) {
-            return MatchingResult.fail();
+            return Match.fail();
         }
         return findQuantified(items, position);
     }
 
     /**
-     * Called by {@link GenericPattern#getResult(List, int)} to retrieve a matching result for the given entity sequence
+     * Called by {@link GenericPattern#getMatch(List, int)} to retrieve a match for the given entity sequence
      * and position that honors the possible quantifiers assigned to pattern elements
      * @param items    The sequence to which the pattern is applied; an arbitrary-typed list
      * @param position The position from which to start probing for the pattern
-     * @return {@code MatchingResult} object
+     * @return {@link Match} object
      */
-    abstract MatchingResult findQuantified(List<T> items, int position);
+    abstract Match findQuantified(List<T> items, int position);
 
     /* ------------------------------
        Non-public structuring methods
@@ -229,7 +229,7 @@ public abstract class GenericPattern<T> {
         }
 
         /**
-         * Adds to the pattern an element of matching by sample
+         * Adds to the pattern matching sample
          * @param sample The object used as the sample to compare a sequence member to
          * @return Builder instance
          */
@@ -238,7 +238,7 @@ public abstract class GenericPattern<T> {
         }
 
         /**
-         * Adds to the pattern an element of matching with predicate
+         * Adds to the pattern matching with predicate
          * @param predicate The predicate used to probe a sequence member to
          * @return Builder instance
          */

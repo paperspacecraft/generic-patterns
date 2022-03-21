@@ -53,7 +53,7 @@ class GroupMatching<T> extends QuantifiedMatching<T> {
      * {@inheritDoc}
      */
     @Override
-    MatchingResult findOne(List<T> items, int position) {
+    Match findOne(List<T> items, int position) {
         return parent.findQuantified(items, position);
     }
 

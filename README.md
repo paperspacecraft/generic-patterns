@@ -27,6 +27,7 @@ The patterns are created in Java code and have virtually the same semantics as a
 Note: currently shipped without optimization; not recommended for high-load use cases.
 
 #### Usage, examples
+*Finding matches*
 
 ```java
 import com.paperspacecraft.scripting.pattern.GenericPattern;
@@ -35,7 +36,7 @@ import org.apache.commons.lang3.ArrayUtils;
 
 public class Main {
     public static void main(String args) {
-        Integer[] sequence = ArrayUtils.toObject(new int[] {4, 3, 8, 5, 6, 3, 8, 5, 6, 3, 8, 8, 5});
+        Integer[] sequence = ArrayUtils.toObject(new int[] {4, 3, 8, 5, 6, 3, 8, 5, 6, 3, 8, 8, 25});
         
         GenericPattern<Integer> pattern = GenericPattern
                 .<Integer>instance()
@@ -62,13 +63,63 @@ public class Main {
             Output:
             Group at position 1: [3, 8, 5]
             Group at position 5: [3, 8, 5]
-            Group at position 9: [3, 8, 8, 5]
+            Group at position 9: [3, 8, 8, 25]
          */
     }
 }
 ```
 
-See the [tests folder](src/test/java/com/paperspacecraft/scripting/pattern) for more usage examples. See javadocs for the complete explanation.
+*Replacing*
+
+```java
+import com.paperspacecraft.scripting.pattern.GenericPattern;
+import com.paperspacecraft.scripting.pattern.Matcher;
+import org.apache.commons.lang3.ArrayUtils;
+
+import java.util.Arrays;
+import java.util.stream.Collectors;
+
+public class Main {
+    public static void main(String args) {
+        Integer[] sequence = ArrayUtils.toObject(new int[] {4, 3, 8, 5, 6, 3, 8, 5, 6, 3, 8, 8, 5});
+
+        GenericPattern<Integer> pattern = GenericPattern
+                .<Integer>instance()
+                .token(3)
+                .token(8).oneOrMore()
+                .token(5)
+                .build();
+
+        Matcher<Integer> matcher = pattern.matcher(sequence);
+        
+        // Replacing with a pre-defined value
+        List<Integer> newSequence = matcher.replaceAll(Arrays.asList(30, 80, 50));
+        System.out.printf(
+                "New sequence is [%s]%n",
+                newSequence.stream().map(String::valueOf).collect(Collectors.joining(", ")));
+
+        // Replacing with a transformer function
+        List<Integer> newSequence2 = matcher.replaceAll(match -> {
+            CapturingGroup group = match.getGroup(0);
+            assert group != null;
+            return group.getHits(sequence).stream().map(i -> i * 100).collect(Collectors.toList());
+        });
+        System.out.printf(
+                "New sequence is [%s]%n",
+                newSequence2.stream().map(String::valueOf).collect(Collectors.joining(", ")));
+
+        /*
+            Output:
+            New sequence is [4, 30, 80, 50, 6, 30, 80, 50, 6, 30, 80, 50]
+            New sequence is [4, 30, 80, 50, 6, 30, 80, 50, 6, 30, 80, 50]
+         */
+    }
+}
+```
+---
+See the [tests folder](src/test/java/com/paperspacecraft/scripting/pattern) for more usage examples. 
+
+See javadocs for the complete explanation.
 
 ### Licensing
 

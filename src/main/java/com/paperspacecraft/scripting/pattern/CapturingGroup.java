@@ -9,7 +9,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Represents a RegExp-like capturing group inside a matching result
+ * Represents a RegExp-like capturing group inside a match
  */
 public class CapturingGroup {
 

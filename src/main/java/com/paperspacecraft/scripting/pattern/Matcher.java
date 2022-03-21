@@ -17,11 +17,16 @@ import org.apache.commons.collections4.CollectionUtils;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.function.Function;
 
 /**
- * Performs matching operations on a sequence of arbitrary objects using a {@link GenericPattern}
+ * Performs matching and replacing operations on a sequence of arbitrary objects using a {@link GenericPattern}
  * @param <T> Type of entities handled by this instance
  */
 public class Matcher<T> {
@@ -29,9 +34,7 @@ public class Matcher<T> {
     private final GenericPattern<T> pattern;
     private final List<T> items;
 
-    private int start = -1;
-    private int end = -1;
-    private List<CapturingGroup> groups;
+    private Match currentMatch;
 
     /**
      * Instance constructor
@@ -43,53 +46,68 @@ public class Matcher<T> {
         this.items = items;
     }
 
+    /* ------------------------------
+       Common accessors and modifiers
+       ------------------------------ */
+
     /**
-     * Retrieves the starting position (inclusive) of the matching found within the handled sequence of entities
-     * @return Int value. If no matching is found, {@code -1} is returned
+     * Retrieves the starting position (inclusive) of the match found within the handled sequence of entities
+     * @return Int value. If no match is found, {@code -1} is returned
      */
     public int getStart() {
-        return start;
+        return currentMatch != null ? currentMatch.getStart() : -1;
     }
 
     /**
-     * Retrieves the end position (exclusive) of the matching found within the handled sequence of entities
-     * @return Int value. If no matching is found, {@code -1} is returned
+     * Retrieves the end position (exclusive) of the match found within the handled sequence of entities
+     * @return Int value. If no match is found, {@code -1} is returned
      */
     public int getEnd() {
-        return end;
+        return currentMatch != null ? currentMatch.getEnd() : -1;
     }
 
     /**
-     * Retrieves the size (number of entities) of the matching found within the handled sequence
-     * @return Int value. If no matching is found, {@code 0} is returned
+     * Retrieves the size (number of entities) of the match found within the handled sequence
+     * @return Int value. If no match is found, {@code 0} is returned
      */
     public int getSize() {
-        return end - start;
+        return currentMatch != null ? currentMatch.getSize() : 0;
     }
 
     /**
      * Retrieves the sublist of the handled sequence containing matched items
-     * @return {@code List} object; an empty list if no matching is found
+     * @return {@code List} object; an empty list if no match is found
      */
-    @Nonnull
+    @Nullable
     public List<T> getHits() {
-        if (start == end || CollectionUtils.isEmpty(items)) {
-            return Collections.emptyList();
+        if (currentMatch == null) {
+            return null;
         }
-        return items.subList(start, end);
+        return currentMatch.getHits(items);
     }
 
     /**
      * Retrieves the list of capturing groups containing matched items. The resulting value is either {@code null} if
-     * there has been no match or a non-empty list. The first list item always represents the "complete" matching. The
+     * there has been no match, or a non-empty list. The first list item always represents the "complete" match. The
      * rest of the items represent particular capturing groups if there are any. Groups are sorted in order of their
      * start positions
-     * @return {@code List} object. If no matching is found, {@code null} is returned. Otherwise, a list containing at
+     * @return {@code List} object. If no match is found, {@code null} is returned. Otherwise, a list containing at
      * least one group is returned
      */
     @Nullable
     public List<CapturingGroup> getGroups() {
-        return groups;
+        return currentMatch != null ? currentMatch.getGroups() : Collections.emptyList();
+    }
+
+    /**
+     * Retrieves a capturing group by index
+     * @param index Index of the group in the collection
+     * @return {@link CapturingGroup} object; might be null
+     * @see Matcher#getGroups()
+     */
+    @Nullable
+    public CapturingGroup getGroup(int index) {
+        return currentMatch != null ? currentMatch.getGroup(index) : null;
     }
 
     /**
@@ -98,17 +116,20 @@ public class Matcher<T> {
      * match
      */
     public void reset() {
-        start = -1;
-        end = -1;
+        currentMatch = null;
     }
 
+    /* -------------
+       Finding logic
+       ------------- */
+
     /**
-     * Finds the next matching within the handled sequence. If there have already been matches, the search starts from
-     * the end position of the last successful matching. Otherwise, it starts from the beginning of the handled sequence
-     * @return {@code True} if a new matching is found; or else {@code false}
+     * Finds the next match within the handled sequence. If there have already been matches, the search starts from the
+     * end position of the last successful match. Otherwise, it starts from the beginning of the handled sequence
+     * @return {@code True} if a new match is found; or else {@code false}
      */
     public boolean find() {
-        return findAtPosition(Math.max(end, 0));
+        return findAtPosition(Math.max(getEnd(), 0));
     }
 
     private boolean findAtPosition(int position) {
@@ -120,13 +141,11 @@ public class Matcher<T> {
                 reset();
                 return false;
             }
-            MatchingResult matchingResult = pattern.getResult(items, i);
-            if (matchingResult.isSuccess()
-                    && matchingResult.getSize() > 0
-                    && isProperClosing(i, matchingResult.getSize())) {
-                start = i;
-                end = start + matchingResult.getSize();
-                groups = matchingResult.getGroups();
+            Match match = pattern.getMatch(items, i);
+            if (match.isSuccess()
+                    && match.getSize() > 0
+                    && isProperClosing(i, match.getSize())) {
+                currentMatch = match;
                 return true;
             }
         }
@@ -136,5 +155,75 @@ public class Matcher<T> {
 
     private boolean isProperClosing(int position, int length) {
         return !pattern.mustBeLast() || (position + length) == items.size();
+    }
+
+    /* -----------------
+       Replacement logic
+       ----------------- */
+
+    /**
+     * Replaces all subsequences within the handled entities list that match the current pattern with the provided
+     * value
+     * @param replacement The value to use as the replacement. If a null or empty value is provided, the method works as
+     *                    a deletion routine
+     * @return Modified list (a new instance); might be a non-null empty list
+     */
+    @Nonnull
+    public List<T> replaceAll(T replacement) {
+        return replaceAll(replacement != null ? Collections.singletonList(replacement) : null);
+    }
+
+    /**
+     * Replaces all subsequences within the handled entities list that match the current pattern with the provided array
+     * value
+     * @param replacement The value to use as the replacement. If a null or empty value is provided, the method works as
+     *                    a deletion routine
+     * @return Modified list (a new instance); might be a non-null empty list
+     */
+    @Nonnull
+    public List<T> replaceAll(T[] replacement) {
+        return replaceAll(Arrays.asList(replacement));
+    }
+
+    /**
+     * Replaces all subsequences within the handled entities list that match the current pattern with the provided list
+     * value
+     * @param replacement The value to use as the replacement. If a null or empty value is provided, the method works as
+     *                    a deletion routine
+     * @return Modified list (a new instance); might be a non-null empty list
+     */
+    @Nonnull
+    public List<T> replaceAll(List<T> replacement) {
+        return replaceAll(match -> replacement);
+    }
+
+    /**
+     * Replaces all subsequences within the handled entities list that match the current pattern with a new list
+     * retrieved from the previous one via the provided modifier function
+     * @param replacement {@code Function} used to transform the matched subsequence
+     * @return Modified list (a new instance); might be a non-null empty list
+     */
+    public List<T> replaceAll(@Nonnull Function<Match, List<T>> replacement) {
+        if (CollectionUtils.isEmpty(items)) {
+            return Collections.emptyList();
+        }
+        reset();
+        List<T> result = new ArrayList<>(items);
+        LinkedList<Match> results = new LinkedList<>();
+        while (find()) {
+            results.add(currentMatch);
+        }
+
+        Iterator<Match> resultsIterator = results.descendingIterator();
+        while (resultsIterator.hasNext()) {
+            Match current = resultsIterator.next();
+            List<T> matchedView = result.subList(current.getStart(), current.getEnd());
+            List<T> replacementList = replacement.apply(current);
+            matchedView.clear();
+            if (CollectionUtils.isNotEmpty(replacementList)) {
+                result.addAll(current.getStart(), replacementList);
+            }
+        }
+        return result;
     }
 }
