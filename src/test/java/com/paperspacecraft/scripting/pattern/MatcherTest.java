@@ -1,14 +1,53 @@
 package com.paperspacecraft.scripting.pattern;
 
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.ArrayUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class MatcherTest {
+
+    @Test
+    public void shouldProcessMatchAndGetHits() {
+        String testCase = "abcabacabccbaeacbabc";
+        Character[] testCaseArray = ArrayUtils.toObject(testCase.toCharArray());
+
+        Matcher<Character> matcher = PseudoRegexTestsHelper.getMatcher("c\\w+e", testCase);
+        Assert.assertTrue(matcher.find());
+        Assert.assertEquals(2, matcher.getStart());
+
+        CapturingGroup group = matcher.getGroup();
+        Assert.assertNotNull(group);
+
+        List<Character> hits = group.getHits(testCaseArray);
+        Assert.assertNotNull(hits);
+        Assert.assertEquals(
+                "cabacabccbae",
+                hits.stream().map(Object::toString).collect(Collectors.joining()));
+    }
+
+    @Test
+    public void shouldProcessMatchWithGroups() {
+        String testCase = "abcabacabccbaeacbabc";
+        List<Character> testCaseCollection = testCase.chars().mapToObj(c -> (char) c).collect(Collectors.toList());
+
+        Matcher<Character> matcher = PseudoRegexTestsHelper.getMatcher("c(\\w+)e", "abcabacabccbaeacbabc");
+        Assert.assertTrue(matcher.find());
+
+        CapturingGroup group = matcher.getGroup(1);
+        Assert.assertNotNull(group);
+
+        Character[] hits = group.getHitArray(testCaseCollection);
+        Assert.assertNotNull(hits);
+        Assert.assertEquals(
+                "abacabccba",
+                Arrays.stream(hits).map(Object::toString).collect(Collectors.joining()));
+    }
 
     @Test
     public void shouldProcessSerialMatches1() {
@@ -32,8 +71,11 @@ public class MatcherTest {
 
         List<Integer> hits = new ArrayList<>();
         while (matcher.find()) {
-            Assert.assertNotNull(matcher.getGroups());
-            int hit = matcher.getGroups().get(0).getHits(NumericPatternsTest.SEQUENCE).get(0);
+            CapturingGroup group = matcher.getGroup(0);
+            Assert.assertNotNull(group);
+            List<Integer> moreHits = group.getHits(NumericPatternsTest.SEQUENCE);
+            Assert.assertNotNull(moreHits);
+            int hit = moreHits.get(0);
             hits.add(hit);
         }
         Assert.assertEquals(3, hits.size());

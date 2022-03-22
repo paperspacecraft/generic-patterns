@@ -100,9 +100,9 @@ class PseudoRegexTestsHelper {
             String sequence) {
 
         if ("\\w".equals(sequence)) {
-            return builder.token(Character::isAlphabetic);
+            return builder.token(Character::isAlphabetic).tag("\\w");
         } else if ("\\d".equals(sequence)) {
-            return builder.token(Character::isDigit);
+            return builder.token(Character::isDigit).tag("\\d");
         }
         return builder;
     }

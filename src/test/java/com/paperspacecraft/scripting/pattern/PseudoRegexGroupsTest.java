@@ -183,6 +183,13 @@ public class PseudoRegexGroupsTest {
         Assert.assertEquals(1, matcher.getGroups().get(1).getStart());
         Assert.assertEquals(1, matcher.getGroups().get(1).getSize());
 
+        matcher = PseudoRegexTestsHelper.getMatcher("a(\\w+)d", "abcd");
+        Assert.assertTrue(matcher.find());
+        Assert.assertNotNull(matcher.getGroups());
+        Assert.assertEquals(2, matcher.getGroups().size());
+        Assert.assertEquals(1, matcher.getGroups().get(1).getStart());
+        Assert.assertEquals(2, matcher.getGroups().get(1).getSize());
+
         matcher = PseudoRegexTestsHelper.getMatcher("(cd\\w*)", "abcd");
         Assert.assertTrue(matcher.find());
         Assert.assertNotNull(matcher.getGroups());
