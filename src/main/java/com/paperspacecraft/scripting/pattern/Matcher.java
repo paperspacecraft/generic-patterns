@@ -29,7 +29,7 @@ import java.util.function.Function;
  * Performs matching and replacing operations on a sequence of arbitrary objects using a {@link GenericPattern}
  * @param <T> Type of entities handled by this instance
  */
-public class Matcher<T> {
+public class Matcher<T> implements MatchInfoProvider, GroupInfoProvider {
 
     private final GenericPattern<T> pattern;
     private final List<T> items;
@@ -51,72 +51,28 @@ public class Matcher<T> {
        ------------------------------ */
 
     /**
-     * Retrieves the starting position (inclusive) of the match found within the handled sequence of entities
-     * @return Int value. If no match is found, {@code -1} is returned
+     * {@inheritDoc}
      */
+    @Override
     public int getStart() {
         return currentMatch != null ? currentMatch.getStart() : -1;
     }
 
     /**
-     * Retrieves the end position (exclusive) of the match found within the handled sequence of entities
-     * @return Int value. If no match is found, {@code -1} is returned
+     * {@inheritDoc}
      */
+    @Override
     public int getEnd() {
         return currentMatch != null ? currentMatch.getEnd() : -1;
     }
 
     /**
-     * Retrieves the size (number of entities) of the match found within the handled sequence
-     * @return Int value. If no match is found, {@code 0} is returned
+     * {@inheritDoc}
      */
-    public int getSize() {
-        return currentMatch != null ? currentMatch.getSize() : 0;
-    }
-
-    /**
-     * Retrieves the sublist of the handled sequence containing matched items
-     * @return {@code List} object; an empty list if no match is found
-     */
-    @Nullable
-    public List<T> getHits() {
-        if (currentMatch == null) {
-            return null;
-        }
-        return currentMatch.getHits(items);
-    }
-
-    /**
-     * Retrieves the list of capturing groups containing matched items. The resulting value is either {@code null} if
-     * there has been no match, or a non-empty list. The first list item always represents the "complete" match. The
-     * rest of the items represent particular capturing groups if there are any. Groups are sorted in order of their
-     * start positions
-     * @return {@code List} object. If no match is found, {@code null} is returned. Otherwise, a list containing at
-     * least one group is returned
-     */
+    @Override
     @Nullable
     public List<CapturingGroup> getGroups() {
         return currentMatch != null ? currentMatch.getGroups() : Collections.emptyList();
-    }
-
-    /**
-     * Retrieves the default capturing group
-     * @return {@link CapturingGroup} object; might be null
-     */
-    @Nullable
-    public CapturingGroup getGroup() {
-        return currentMatch != null ? currentMatch.getGroup() : null;
-    }
-
-    /**
-     * Retrieves a capturing group by index
-     * @param index Index of the group in the collection
-     * @return {@link CapturingGroup} object; might be null
-     * @see Matcher#getGroups()
-     */
-    @Nullable
-    public CapturingGroup getGroup(int index) {
-        return currentMatch != null ? currentMatch.getGroup(index) : null;
     }
 
     /**

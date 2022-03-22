@@ -22,7 +22,7 @@ import java.util.List;
 /**
  * Represents the result of a singular matching operation
  */
-public class Match {
+public class Match implements MatchInfoProvider, GroupInfoProvider {
 
     private static final Match FAIL = new Match(false, -1, -1);
 
@@ -57,68 +57,33 @@ public class Match {
     }
 
     /**
-     * Retrieves the starting position of this match
-     * @return Int value
+     * {@inheritDoc}
      */
+    @Override
     public int getStart() {
         return start;
     }
 
     /**
-     * Retrieves the end position of this match
-     * @return Int value
+     * {@inheritDoc}
      */
+    @Override
     public int getEnd() {
         return end;
     }
 
     /**
-     * Gets the length of the matched sub-sequence
-     * @return True or false
+     * {@inheritDoc}
      */
-    public int getSize() {
-        return end - start;
-    }
-
-    /**
-     * Retrieves the capturing groups associated with the current match
-     * @return {@code List} object; might be null
-     */
+    @Override
     @Nullable
     public List<CapturingGroup> getGroups() {
         return groups;
     }
 
-    /**
-     * Retrieves the default capturing group
-     * @return {@link CapturingGroup} object; might be null
-     */
-    @Nullable
-    public CapturingGroup getGroup() {
-        return CollectionUtils.isNotEmpty(groups) ? groups.get(0) : null;
-    }
-
-    /**
-     * Retrieves a capturing group by index
-     * @param index Index of the group in the collection
-     * @return {@link CapturingGroup} object; might be null
-     */
-    @Nullable
-    public CapturingGroup getGroup(int index) {
-        return groups != null && index >= 0 && index < groups.size() ? groups.get(index) : null;
-    }
-
-    /**
-     * Retrieves the sublist containing matched items
-     * @return {@code List} object; null can be returned if no match is found
-     */
-    @Nullable
-    public <T> List<T> getHits(List<T> items) {
-        if (getStart() < 0 || getSize() <= 0 || CollectionUtils.isEmpty(items)) {
-            return null;
-        }
-        return items.subList(start, end);
-    }
+    /* ---------------------------
+       Utility composition methods
+       --------------------------- */
 
     /**
      * Assigns the list of capturing groups to this instance in a builder-like manner
