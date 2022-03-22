@@ -50,7 +50,7 @@ abstract class QuantifiedMatching<T> extends GenericPattern<T> {
      */
     @Override
     Match findQuantified(List<T> items, int position) {
-        return new Finder(items, position, getCapturingGroups()).find();
+        return new Finder(items, position, getCapturingGroups()).findMatch();
     }
 
     /**
@@ -61,37 +61,11 @@ abstract class QuantifiedMatching<T> extends GenericPattern<T> {
      */
     abstract Match findOne(List<T> items, int position);
 
-    /* ------------------------
-       Matching extension logic
-       ------------------------ */
-
     /**
      * Initializes a {@link CapturingGroupCollection} in either enabled or disabled state
      * @return {@code CapturingGroupCollection} object
      */
     abstract CapturingGroupCollection getCapturingGroups();
-
-    private Match getSiblingMatch(List<T> items, int position, Match defaultResult) {
-        if (getNext() == null) {
-            return defaultResult;
-        }
-        return getNext().findQuantified(items, position);
-    }
-
-    private Match getUpstreamMatch(List<T> items, int position) {
-        if (getNext() != null || getUpstream() == null) {
-            return Match.fail();
-        }
-        return getUpstream().findQuantified(items, position);
-    }
-
-    /* ----------------
-       Quantifier logic
-       ---------------- */
-
-    private boolean isExactNumberNeeded() {
-        return min == max;
-    }
 
     /* --------------
        Helper classes
@@ -125,7 +99,7 @@ abstract class QuantifiedMatching<T> extends GenericPattern<T> {
          * Finds the sequence of atomic matches per separate pattern elements in a loop
          * @return {@link Match} object
          */
-        public Match find() {
+        public Match findMatch() {
             matchCount = 0;
             nextPosition = position;
 
@@ -163,7 +137,7 @@ abstract class QuantifiedMatching<T> extends GenericPattern<T> {
             // Now there's a match. Process all the available occurrences. We do this in a loop. Counters are
             // incremented at the loop start to account for the match that has already been received
             while (currentResult.isSuccess()) {
-                Pair<Match, Boolean> resultAndBreak = processAndAdvance(currentResult);
+                Pair<Match, Boolean> resultAndBreak = consumeMatchAndAdvance(currentResult);
                 if (resultAndBreak.getRight()) {
                     return resultAndBreak.getLeft();
                 }
@@ -182,7 +156,7 @@ abstract class QuantifiedMatching<T> extends GenericPattern<T> {
                     .withGroups(capturingGroups.getItems());
         }
 
-        private Pair<Match, Boolean> processAndAdvance(Match currentResult) {
+        private Pair<Match, Boolean> consumeMatchAndAdvance(Match currentResult) {
             // Add the capturing groups for the current match if needed. (If the current pattern does not support
             // capturing groups, nothing will occur)
             capturingGroups.add(matchCount, nextPosition, nextPosition + currentResult.getSize(), currentResult);
@@ -198,27 +172,40 @@ abstract class QuantifiedMatching<T> extends GenericPattern<T> {
                 return Pair.of(terminal, true);
 
             } else if (!isExactNumberNeeded() && matchCount >= min) {
-                // There are three reasons why we can break away from the loop early:
-                // 1) the current pattern element is not matched but the sibling is matched;
-                // 2) the current pattern element is matched and there's a sibling that will not be matched if the
-                //     cursor advances but it will be matched if the cursor remains
-                Match newCurrentMatching = findOne(items, nextPosition);
-                Match siblingMatching = getSiblingMatch(items, nextPosition, Match.fail());
-                Match nextSiblingMatching = getSiblingMatch(items, nextPosition + 1, Match.success(nextPosition + 1));
-                boolean canReturnNow = (!newCurrentMatching.isSuccess() && siblingMatching.isSuccess())
-                        || (newCurrentMatching.isSuccess() && siblingMatching.isSuccess() && !nextSiblingMatching.isSuccess());
 
-                if (canReturnNow) {
+                // There are three reasons why we can break away from the loop early...
+                Match newCurrentMatch = findOne(items, nextPosition);
+                Match siblingMatch = getSiblingMatch(items, nextPosition, Match.fail());
+
+                // 1) The current pattern element is not matched but the sibling is matched
+                if (!newCurrentMatch.isSuccess() && siblingMatch.isSuccess()) {
                     Match terminal = Match
                             .success(position, nextPosition)
-                            .and(siblingMatching)
+                            .and(siblingMatch)
                             .withGroups(capturingGroups.getItems());
                     return Pair.of(terminal, true);
                 }
-                // 3) The third reason is that there's the upstream match
-                if (!newCurrentMatching.isSuccess() && getUpstreamMatch(items, nextPosition).isSuccess()) {
+
+                // 2) The current pattern element is matched and there's upstream that will not be matched if
+                //    the cursor advances but it will be matched if the cursor remains
+                //    Else, the current pattern element is NOT matched but there's an upstream match
+                Match upstreamMatch = getUpstreamMatch(items, nextPosition);
+                Match nextUpstreamMatch = getUpstreamMatch(items, nextPosition + 1);
+                if ((newCurrentMatch.isSuccess() && upstreamMatch.isSuccess() && !nextUpstreamMatch.isSuccess())
+                        || (!newCurrentMatch.isSuccess() && upstreamMatch.isSuccess())) {
                     Match terminal = Match
                             .success(position, nextPosition)
+                            .withGroups(capturingGroups.getItems());
+                    return Pair.of(terminal, true);
+                }
+
+                // 3) The current pattern element is matched and there's a sibling that will not be matched if
+                //    the cursor advances but it will be matched if the cursor remains
+                Match nextSiblingMatch = getSiblingMatch(items, nextPosition + 1, Match.success(nextPosition + 1));
+                if (newCurrentMatch.isSuccess() && siblingMatch.isSuccess() && !nextSiblingMatch.isSuccess()) {
+                    Match terminal = Match
+                            .success(position, nextPosition)
+                            .and(siblingMatch)
                             .withGroups(capturingGroups.getItems());
                     return Pair.of(terminal, true);
                 }
@@ -227,5 +214,24 @@ abstract class QuantifiedMatching<T> extends GenericPattern<T> {
             // Otherwise, retrieve the "ordinary" atomic result
             return Pair.of(findOne(items, nextPosition), false);
         }
+
+        private Match getSiblingMatch(List<T> items, int position, Match defaultResult) {
+            if (getNext() == null) {
+                return defaultResult;
+            }
+            return getNext().findQuantified(items, position);
+        }
+
+        private Match getUpstreamMatch(List<T> items, int position) {
+            if (getNext() != null || getUpstream() == null) {
+                return Match.fail();
+            }
+            return getUpstream().findQuantified(items, position);
+        }
+
+        private boolean isExactNumberNeeded() {
+            return min == max;
+        }
+
     }
 }
