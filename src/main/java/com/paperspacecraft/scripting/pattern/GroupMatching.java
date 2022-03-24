@@ -61,8 +61,8 @@ class GroupMatching<T> extends QuantifiedMatching<T> {
      * {@inheritDoc}
      */
     @Override
-    CapturingGroupCollection getCapturingGroups() {
-        return new CapturingGroupCollection(true);
+    GroupCollection getGroups() {
+        return new GroupCollection(true);
     }
 
     /**

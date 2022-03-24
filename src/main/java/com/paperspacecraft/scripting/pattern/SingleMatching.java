@@ -37,7 +37,7 @@ class SingleMatching<T> extends QuantifiedMatching<T> {
      */
     @Override
     Match findOne(List<T> items, int position) {
-        return position < items.size() && predicate.test(items.get(position))
+        return position < items.size() && items.get(position) != null && predicate.test(items.get(position))
             ? Match.success(position, position + 1)
             : Match.fail();
     }
@@ -46,7 +46,7 @@ class SingleMatching<T> extends QuantifiedMatching<T> {
      * {@inheritDoc}
      */
     @Override
-    CapturingGroupCollection getCapturingGroups() {
-        return new CapturingGroupCollection(false);
+    GroupCollection getGroups() {
+        return new GroupCollection(false);
     }
 }

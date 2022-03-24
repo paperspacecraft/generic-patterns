@@ -30,13 +30,13 @@ public class Match implements MatchInfoProvider, GroupInfoProvider {
     private final int start;
     private final int end;
 
-    private List<CapturingGroup> groups;
+    private List<Group> groups;
 
     /**
      * Instance constructor
      * @param success Flag indicating whether this is a successful match
-     * @param start   Start position of the match
-     * @param end     End position of the match
+     * @param start   The start position of the match
+     * @param end     The end position of the match
      */
     private Match(boolean success, int start, int end) {
         this.success = success;
@@ -77,7 +77,7 @@ public class Match implements MatchInfoProvider, GroupInfoProvider {
      */
     @Override
     @Nullable
-    public List<CapturingGroup> getGroups() {
+    public List<Group> getGroups() {
         return groups;
     }
 
@@ -90,7 +90,7 @@ public class Match implements MatchInfoProvider, GroupInfoProvider {
      * @param value {@code List} object
      * @return This instance
      */
-    Match withGroups(List<CapturingGroup> value) {
+    Match withGroups(List<Group> value) {
         if (!isSuccess() || CollectionUtils.isEmpty(value)) {
             return this;
         }
@@ -131,7 +131,7 @@ public class Match implements MatchInfoProvider, GroupInfoProvider {
 
     /**
      * Retrieves the zero-sized successful match
-     * @param start Start position of the match
+     * @param start The start position of the match
      * @return {@link Match} instance
      */
     static Match success(int start) {
@@ -139,9 +139,9 @@ public class Match implements MatchInfoProvider, GroupInfoProvider {
     }
 
     /**
-     * Retrieves a successful match starting as ths given position with the provided size
-     * @param start Start position of the match
-     * @param end   End position of the match
+     * Retrieves a successful match starting as the given position with the provided size
+     * @param start The start position of the match
+     * @param end   The end position of the match
      * @return {@link Match} instance
      */
     static Match success(int start, int end) {

@@ -50,7 +50,7 @@ abstract class QuantifiedMatching<T> extends GenericPattern<T> {
      */
     @Override
     Match findQuantified(List<T> items, int position) {
-        return new Finder(items, position, getCapturingGroups()).findMatch();
+        return new Finder(items, position, getGroups()).findMatch();
     }
 
     /**
@@ -62,10 +62,10 @@ abstract class QuantifiedMatching<T> extends GenericPattern<T> {
     abstract Match findOne(List<T> items, int position);
 
     /**
-     * Initializes a {@link CapturingGroupCollection} in either enabled or disabled state
-     * @return {@code CapturingGroupCollection} object
+     * Initializes a {@link GroupCollection} which is in either enabled or disabled state
+     * @return {@code GroupCollection} object
      */
-    abstract CapturingGroupCollection getCapturingGroups();
+    abstract GroupCollection getGroups();
 
     /* --------------
        Helper classes
@@ -78,7 +78,7 @@ abstract class QuantifiedMatching<T> extends GenericPattern<T> {
     private class Finder {
         private final List<T> items;
         private final int position;
-        private final CapturingGroupCollection capturingGroups;
+        private final GroupCollection groups;
 
         private int matchCount;
         private int nextPosition;
@@ -87,12 +87,12 @@ abstract class QuantifiedMatching<T> extends GenericPattern<T> {
          * Instance constructor
          * @param items           The sequence of arbitrary-types entities to find a match in
          * @param position        The position in the sequence from which to start the search
-         * @param capturingGroups {@code CapturingGroupCollection} accumulating object
+         * @param groups {@code GroupCollection} accumulating object
          */
-        public Finder(List<T> items, int position, CapturingGroupCollection capturingGroups) {
+        public Finder(List<T> items, int position, GroupCollection groups) {
             this.items = items;
             this.position = position;
-            this.capturingGroups = capturingGroups;
+            this.groups = groups;
         }
 
         /**
@@ -153,13 +153,13 @@ abstract class QuantifiedMatching<T> extends GenericPattern<T> {
             return Match
                     .success(position, nextPosition)
                     .and(getSiblingMatch(items, nextPosition, Match.success(nextPosition)))
-                    .withGroups(capturingGroups.getItems());
+                    .withGroups(groups.getItems());
         }
 
         private Pair<Match, Boolean> consumeMatchAndAdvance(Match currentResult) {
             // Add the capturing groups for the current match if needed. (If the current pattern does not support
             // capturing groups, nothing will occur)
-            capturingGroups.add(matchCount, nextPosition, nextPosition + currentResult.getSize(), currentResult);
+            groups.add(matchCount, nextPosition, nextPosition + currentResult.getSize(), currentResult);
 
             matchCount++;
             nextPosition = currentResult.getEnd();
@@ -168,7 +168,7 @@ abstract class QuantifiedMatching<T> extends GenericPattern<T> {
                 Match terminal = Match
                         .success(position, nextPosition)
                         .and(getSiblingMatch(items, nextPosition, Match.success(nextPosition)))
-                        .withGroups(capturingGroups.getItems());
+                        .withGroups(groups.getItems());
                 return Pair.of(terminal, true);
 
             } else if (!isExactNumberNeeded() && matchCount >= min) {
@@ -182,7 +182,7 @@ abstract class QuantifiedMatching<T> extends GenericPattern<T> {
                     Match terminal = Match
                             .success(position, nextPosition)
                             .and(siblingMatch)
-                            .withGroups(capturingGroups.getItems());
+                            .withGroups(groups.getItems());
                     return Pair.of(terminal, true);
                 }
 
@@ -195,7 +195,7 @@ abstract class QuantifiedMatching<T> extends GenericPattern<T> {
                         || (!newCurrentMatch.isSuccess() && upstreamMatch.isSuccess())) {
                     Match terminal = Match
                             .success(position, nextPosition)
-                            .withGroups(capturingGroups.getItems());
+                            .withGroups(groups.getItems());
                     return Pair.of(terminal, true);
                 }
 
@@ -206,7 +206,7 @@ abstract class QuantifiedMatching<T> extends GenericPattern<T> {
                     Match terminal = Match
                             .success(position, nextPosition)
                             .and(siblingMatch)
-                            .withGroups(capturingGroups.getItems());
+                            .withGroups(groups.getItems());
                     return Pair.of(terminal, true);
                 }
             }

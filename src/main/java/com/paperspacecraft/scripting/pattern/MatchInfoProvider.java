@@ -105,7 +105,7 @@ public interface MatchInfoProvider {
             return null;
         }
         Class<?> effectiveItemType = itemType != null ? itemType : items.get(0).getClass();
-        // noinspection unchecked
+        @SuppressWarnings("unchecked")
         T[] result = (T[]) Array.newInstance(effectiveItemType, getSize());
         for (int i = getStart(); i < getStart() + result.length; i++) {
             result[i - getStart()] = items.get(i);

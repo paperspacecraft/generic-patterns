@@ -48,7 +48,7 @@ public class Main {
         Matcher<Integer> matcher = pattern.matcher(sequence);
         while (matcher.find()) {
             assert matcher.getGroup() != null;
-            CapturingGroup group = matcher.getGroup();
+            Group group = matcher.getGroup();
             List<String> numbersInGroup = group.getHits(sequence)
                     .stream()
                     .map(String::valueOf)
@@ -100,7 +100,7 @@ public class Main {
 
         // Replacing with a transformer function
         List<Integer> newSequence2 = matcher.replaceWith(match -> {
-            CapturingGroup group = match.getGroup(0);
+            Group group = match.getGroup(0);
             assert group != null;
             return group.getHits(sequence).stream().map(i -> i * 100).collect(Collectors.toList());
         });
@@ -117,9 +117,9 @@ public class Main {
 }
 ```
 ---
-See the [tests folder](src/test/java/com/paperspacecraft/scripting/pattern) for more usage examples. 
+See the [tests folder](src/test/java/com/paperspacecraft/scripting/pattern) for more usage examples.
 
-See javadocs for the complete explanation.
+See Javadoc for the complete explanation.
 
 ### Licensing
 

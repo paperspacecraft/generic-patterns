@@ -10,11 +10,11 @@ import java.util.List;
 /**
  * An accumulator of capturing groups found while performing a particular matching routine
  */
-class CapturingGroupCollection {
+class GroupCollection {
 
     private final boolean enabled;
 
-    private List<CapturingGroup> groups;
+    private List<Group> groups;
 
     private int previousStartPosition;
     private int previousEndPosition;
@@ -24,7 +24,7 @@ class CapturingGroupCollection {
      * Instance constructor
      * @param enabled A flag specifying whether the capturing groups will be collected or skipped
      */
-    public CapturingGroupCollection(boolean enabled) {
+    public GroupCollection(boolean enabled) {
         this.enabled = enabled;
     }
 
@@ -57,7 +57,7 @@ class CapturingGroupCollection {
         }
         previousStartPosition = startPosition;
         previousEndPosition = endPosition;
-        groups.add(new CapturingGroup(startPosition, endPosition));
+        groups.add(new Group(startPosition, endPosition));
         if (CollectionUtils.isNotEmpty(match.getGroups())) {
             groups.addAll(match.getGroups());
         }
@@ -69,7 +69,7 @@ class CapturingGroupCollection {
      * @return Nullable {@code List} object
      */
     @Nullable
-    public List<CapturingGroup> getItems() {
+    public List<Group> getItems() {
         optimize();
         return groups;
     }
@@ -78,7 +78,7 @@ class CapturingGroupCollection {
         if (CollectionUtils.isEmpty(groups) || optimized) {
             return;
         }
-        groups.sort(Comparator.comparingInt(CapturingGroup::getStart));
+        groups.sort(Comparator.comparingInt(Group::getStart));
         optimized = true;
     }
 }

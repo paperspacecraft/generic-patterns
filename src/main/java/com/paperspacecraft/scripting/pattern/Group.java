@@ -3,7 +3,7 @@ package com.paperspacecraft.scripting.pattern;
 /**
  * Represents a RegExp-like capturing group inside a match
  */
-public class CapturingGroup implements MatchInfoProvider {
+public class Group implements MatchInfoProvider {
 
     private final int start;
     private final int end;
@@ -13,7 +13,7 @@ public class CapturingGroup implements MatchInfoProvider {
      * @param start Starting position (inclusive) of the current group within the handled sequence
      * @param end   End position (exclusive) of the current group within the handled sequence
      */
-    CapturingGroup(int start, int end) {
+    Group(int start, int end) {
         this.start = start;
         this.end = end;
     }
