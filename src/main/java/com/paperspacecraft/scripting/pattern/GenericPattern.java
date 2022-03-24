@@ -249,6 +249,15 @@ public abstract class GenericPattern<T> {
 
         /**
          * Adds to the pattern a capturing group
+         * @param builder A builder that creates a nested {@code GenericPattern} describing the group
+         * @return Builder instance
+         */
+        default Token<T> group(GenericPattern.Builder<T> builder) {
+            return group(builder.build());
+        }
+
+        /**
+         * Adds to the pattern a capturing group
          * @param pattern A nested {@code GenericPattern} that describes the group
          * @return Builder instance
          */
