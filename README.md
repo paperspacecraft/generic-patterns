@@ -58,7 +58,6 @@ public class Main {
                     matcher.getStart(),
                     String.join(", ", numbersInGroup));
         }
-        
         /*
             Output:
             Group at position 1: [3, 8, 5]
@@ -81,7 +80,7 @@ import java.util.stream.Collectors;
 
 public class Main {
     public static void main(String args) {
-        Integer[] sequence = ArrayUtils.toObject(new int[]{4, 3, 8, 5, 6, 3, 8, 5, 6, 3, 8, 8, 5});
+        Integer[] sequence = ArrayUtils.toObject(new int[] {4, 3, 8, 5, 6, 3, 8, 5, 6, 3, 8, 8, 5});
 
         GenericPattern<Integer> pattern = GenericPattern
                 .<Integer>instance()
@@ -107,7 +106,6 @@ public class Main {
         System.out.printf(
                 "New sequence is [%s]%n",
                 newSequence2.stream().map(String::valueOf).collect(Collectors.joining(", ")));
-
         /*
             Output:
             New sequence is [4, 30, 80, 50, 6, 30, 80, 50, 6, 30, 80, 50]
@@ -116,6 +114,47 @@ public class Main {
     }
 }
 ```
+
+*Splitting*
+
+```java
+import com.paperspacecraft.scripting.pattern.GenericPattern;
+import com.paperspacecraft.scripting.pattern.Matcher;
+import org.apache.commons.lang3.ArrayUtils;
+
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.stream.Collectors;
+
+public class Main {
+    public static void main(String args) {
+        Integer[] sequence = ArrayUtils.toObject(new int[] {4, 3, 8, 5, 6, 3, 8, 5, 6, 3, 8, 8, 7});
+
+        GenericPattern<Integer> pattern = GenericPattern
+                .<Integer>instance()
+                .token(t -> t == 8 || t == 5).oneOrMore()
+                .build();
+
+        Matcher<Integer> matcher = pattern.matcher(sequence);
+        Iterator<List<Integer>> iterator = matcher.split();
+
+        while (iterator.hasNext()) {
+            List<Integer> subsequence = iterator.next();
+            System.out.printf(
+                    "Subsequence is [%s]%n",
+                    subsequence.stream().map(String::valueOf).collect(Collectors.joining(", ")));
+        }
+        /*
+            Output:
+            Subsequence is [4, 3]
+            Subsequence is [6, 3]
+            Subsequence is [6, 3]
+            Subsequence is [7]
+         */
+    }
+}
+```
+
 ---
 See the [tests folder](src/test/java/com/paperspacecraft/scripting/pattern) for more usage examples.
 
