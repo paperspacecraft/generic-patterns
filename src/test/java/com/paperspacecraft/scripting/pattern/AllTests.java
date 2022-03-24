@@ -6,10 +6,11 @@ import org.junit.runners.Suite;
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
         GenericPatternTest.class,
-        NumericPatternsTest.class,
+        MatcherTest.class,
+        SplitTest.class,
+        ReplacementTest.class,
         PseudoRegexPatternsTest.class,
-        PseudoRegexGroupsTest.class,
-        MatcherTest.class
+        PseudoRegexGroupsTest.class
 })
 public class AllTests {
 }

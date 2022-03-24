@@ -270,7 +270,7 @@ public class Matcher<T> implements MatchInfoProvider, GroupInfoProvider {
      * not found, the whole sequence is returned
      * @return {@code Iterator} instance. On each successful iteration, a {@code List} containing the items that belong
      * to the current chunk is returned. The list might be empty if the matched pattern is situated at the very
-     * beginning or the very end of the sequence
+     * beginning of the sequence
      */
     @Nonnull
     public Iterator<List<T>> split() {
@@ -284,12 +284,15 @@ public class Matcher<T> implements MatchInfoProvider, GroupInfoProvider {
 
             @Override
             public List<T> next() {
+                int newPosition;
                 if (findAtPosition(lastPosition)) {
-                    lastPosition = getEnd();
+                    newPosition = getStart();
                 } else {
-                    lastPosition = items.size();
+                    newPosition = items.size();
                 }
-                return items.subList(lastPosition + getSize(), getEnd());
+                List<T> result = items.subList(lastPosition, newPosition);
+                lastPosition = newPosition + getSize();
+                return result;
             }
         };
     }

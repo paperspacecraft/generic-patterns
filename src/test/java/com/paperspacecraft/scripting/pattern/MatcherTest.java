@@ -7,10 +7,69 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class MatcherTest {
+
+    private static final Integer[] SEQUENCE = ArrayUtils.toObject(new int[] {2, 15, 42, 42, 15});
+
+    @Test
+    public void shouldMatchSequence() {
+        GenericPattern<Integer> pattern = GenericPattern
+                .<Integer>instance()
+                .token(15)
+                .token(42).oneOrMore()
+                .build();
+        Matcher<Integer> matcher = pattern.matcher(SEQUENCE);
+        Assert.assertTrue(matcher.find());
+        Assert.assertEquals(1, matcher.getStart());
+        Assert.assertEquals(3, matcher.getSize());
+    }
+
+    @Test
+    public void shouldMatchStartOfSequence() {
+        GenericPattern<Integer> matchingPattern = GenericPattern
+                .<Integer>instance()
+                .beginning()
+                .token(2)
+                .token(15)
+                .token(42)
+                .build();
+        Assert.assertTrue(matchingPattern.matcher(SEQUENCE).find());
+
+        GenericPattern<Integer> nonMatchingPattern = GenericPattern
+                .<Integer>instance()
+                .beginning()
+                .token(42)
+                .token(42)
+                .token(15)
+                .ending()
+                .build();
+        Assert.assertFalse(nonMatchingPattern.matcher(SEQUENCE).find());
+    }
+
+    @Test
+    public void shouldMatchEndOfSequence() {
+        GenericPattern<Integer> matchingPattern = GenericPattern
+                .<Integer>instance()
+                .token(42)
+                .token(42)
+                .token(15)
+                .ending()
+                .build();
+        Assert.assertTrue(matchingPattern.matcher(SEQUENCE).find());
+
+        GenericPattern<Integer> nonMatchingPattern = GenericPattern
+                .<Integer>instance()
+                .beginning()
+                .token(15)
+                .token(42)
+                .token(42)
+                .build();
+        Assert.assertFalse(nonMatchingPattern.matcher(SEQUENCE).find());
+    }
 
     @Test
     public void shouldProcessMatchAndGetHits() {
@@ -67,13 +126,13 @@ public class MatcherTest {
         Matcher<Integer> matcher = GenericPattern
                 .<Integer>instance()
                 .token(num -> num % 10 == 2)
-                .matcher(NumericPatternsTest.SEQUENCE);
+                .matcher(SEQUENCE);
 
         List<Integer> hits = new ArrayList<>();
         while (matcher.find()) {
             Group group = matcher.getGroup(0);
             Assert.assertNotNull(group);
-            List<Integer> moreHits = group.getHits(NumericPatternsTest.SEQUENCE);
+            List<Integer> moreHits = group.getHits(SEQUENCE);
             Assert.assertNotNull(moreHits);
             int hit = moreHits.get(0);
             hits.add(hit);
@@ -83,79 +142,5 @@ public class MatcherTest {
         Assert.assertEquals(42, (int) hits.get(1));
         Assert.assertEquals(42, (int) hits.get(2));
     }
-
-    @Test
-    public void shouldReplace() {
-        PseudoRegexTestsHelper.assertReplacement(
-                "abcabacabccbaacbabc",
-                "abc",
-                "ABC",
-                "ABCabacABCcbaacbABC");
-        PseudoRegexTestsHelper.assertReplacement(
-                "aaaabbbbccabcaabbcabbbbbbcdef",
-                "a+b+c*",
-                "abc",
-                "abcabcabcabcdef");
-        PseudoRegexTestsHelper.assertReplacement(
-                "a123bc5461a87b456c",
-                "\\d+",
-                "",
-                "abcabc");
-    }
-
-    @Test
-    public void shouldReplaceWithInflation() {
-        PseudoRegexTestsHelper.assertReplacement(
-                "abcabc",
-                "\\w",
-                "123",
-                "123123123123123123");
-    }
-
-    @Test
-    public void shouldReplaceWithModifier() {
-        List<Integer> numbers = Arrays.asList(5, 5, 10, 17, 25, 7, 1, 25, 25, 2);
-        Matcher<Integer> matcher = GenericPattern
-                .<Integer>instance()
-                .token(i -> i % 10 == 5).count(2)
-                .matcher(numbers);
-        List<Integer> modifiedNumbers = matcher.replaceWith(match -> {
-            List<Integer> hits = match.getHits(numbers);
-            Assert.assertNotNull(hits);
-            return hits.get(0) * hits.get(1);
-        });
-        Assert.assertTrue(CollectionUtils.isEqualCollection(modifiedNumbers, Arrays.asList(25, 10, 17, 25, 7, 1, 625, 2)));
-    }
-
-    @Test
-    public void shouldReplaceWithModifierAndInflation() {
-        List<Integer> numbers = Arrays.asList(5, 7, 15, 21);
-        Matcher<Integer> matcher = GenericPattern
-                .<Integer>instance()
-                .token(i -> i % 10 == 5)
-                .matcher(numbers);
-        List<Integer> modifiedNumbers = matcher.replaceWithList(match -> {
-            List<Integer> hits = match.getHits(numbers);
-            Assert.assertNotNull(hits);
-            return Arrays.asList(hits.get(0), hits.get(0));
-        });
-        Assert.assertTrue(CollectionUtils.isEqualCollection(modifiedNumbers, Arrays.asList(5, 5, 7, 15, 15, 21)));
-    }
-
-    @Test
-    public void shouldReplaceWithModifierAndInflationUnoptimized() {
-        List<Integer> numbers = Arrays.asList(5, null, 7, 15, 21);
-        Matcher<Integer> matcher = GenericPattern
-                .<Integer>instance()
-                .token(i -> i % 10 == 5)
-                .matcher(numbers);
-        List<Integer> modifiedNumbers = matcher.replaceWithList(match -> {
-            List<Integer> hits = match.getHits(numbers);
-            Assert.assertNotNull(hits);
-            return Arrays.asList(hits.get(0), hits.get(0));
-        });
-        Assert.assertTrue(CollectionUtils.isEqualCollection(modifiedNumbers, Arrays.asList(5, 5, null, 7, 15, 15, 21)));
-    }
-
 }
 
