@@ -23,7 +23,9 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Performs matching and replacing operations on a sequence of arbitrary objects using a {@link GenericPattern}
@@ -32,7 +34,7 @@ import java.util.function.Function;
 public class Matcher<T> implements MatchInfoProvider, GroupInfoProvider {
 
     private final GenericPattern<T> pattern;
-    private final List<T> items;
+    private List<T> items;
 
     private Match currentMatch;
 
@@ -43,7 +45,7 @@ public class Matcher<T> implements MatchInfoProvider, GroupInfoProvider {
      */
     Matcher(GenericPattern<T> pattern, List<T> items) {
         this.pattern = pattern;
-        this.items = items;
+        this.items = items instanceof ArrayList ? items : new ArrayList<>(items);
     }
 
     /* ------------------------------
@@ -71,12 +73,12 @@ public class Matcher<T> implements MatchInfoProvider, GroupInfoProvider {
      */
     @Override
     @Nullable
-    public List<CapturingGroup> getGroups() {
+    public List<Group> getGroups() {
         return currentMatch != null ? currentMatch.getGroups() : Collections.emptyList();
     }
 
     /**
-     * Resets the current {@link Matcher}. It means that the next {@link Matcher#find()} operation will start from the
+     * Resets the current {@link Matcher} so that the next {@link Matcher#find()} operation will start from the
      * beginning of the handled sequence. Otherwise, it will continue from the end position of the last successful
      * match
      */
@@ -127,10 +129,11 @@ public class Matcher<T> implements MatchInfoProvider, GroupInfoProvider {
        ----------------- */
 
     /**
-     * Replaces all sequences within the handled entities list that match the current pattern with the provided value
+     * Modifies and returns the handled sequence by replacing all subsequences that match the current pattern with the
+     * provided value
      * @param replacement The value to use as the replacement. If a null or empty value is provided, the method works as
      *                    a deletion routine
-     * @return Modified list (a new instance); might be a non-null empty list
+     * @return Modified sequence; might be a non-null empty list
      */
     @Nonnull
     public List<T> replaceWith(@Nullable T replacement) {
@@ -141,21 +144,22 @@ public class Matcher<T> implements MatchInfoProvider, GroupInfoProvider {
     }
 
     /**
-     * Replaces all sequences within the handled entities list that match the current pattern with values retrieved via
-     * the provided transform function
+     * Modifies and returns the handled sequence by replacing all subsequences that match the current pattern with
+     * values retrieved via the provided transform function
      * @param transform {@code Function} used to transform the matched sequence
-     * @return Modified list (a new instance); might be a non-null empty list
+     * @return Modified list; might be a non-null empty list
      */
+    @Nonnull
     public List<T> replaceWith(@Nonnull Function<Match, T> transform) {
         return replaceWithList(match -> Collections.singletonList(transform.apply(match)));
     }
 
     /**
-     * Replaces all subsequences within the handled entities list that match the current pattern with the provided array
-     * value
+     * Modifies and returns the handled sequence by replacing all subsequences that match the current pattern with the
+     * provided array value
      * @param replacement The value to use as the replacement. If a null or empty value is provided, the method works as
      *                    a deletion routine
-     * @return Modified list (a new instance); might be a non-null empty list
+     * @return Modified list; might be a non-null empty list
      */
     @Nonnull
     public List<T> replaceWithList(@Nullable T[] replacement) {
@@ -166,44 +170,127 @@ public class Matcher<T> implements MatchInfoProvider, GroupInfoProvider {
     }
 
     /**
-     * Replaces all subsequences within the handled entities list that match the current pattern with the provided list
-     * value
+     * Modifies and returns the handled sequence by replacing all subsequences that match the current pattern with the
+     * provided list value
      * @param replacement The value to use as the replacement. If a null or empty value is provided, the method works as
      *                    a deletion routine
-     * @return Modified list (a new instance); might be a non-null empty list
+     * @return Modified list; might be a non-null empty list
      */
     @Nonnull
-    public List<T> replaceWithList(List<T> replacement) {
+    public List<T> replaceWithList(@Nullable List<T> replacement) {
         return replaceWithList(match -> replacement);
     }
 
     /**
-     * Replaces all subsequences within the handled entities list that match the current pattern with a new list
-     * retrieved from the previous one via the provided modifier function
+     * Modifies the handled sequence by replacing all subsequences that match the pattern with a new list retrieved from
+     * the previous one via the provided modifier function
      * @param replacement {@code Function} used to transform the matched subsequence
-     * @return Modified list (a new instance); might be a non-null empty list
+     * @return Modified list; might be a non-null empty list
      */
+    @Nonnull
     public List<T> replaceWithList(@Nonnull Function<Match, List<T>> replacement) {
         if (CollectionUtils.isEmpty(items)) {
             return Collections.emptyList();
         }
+
         reset();
-        List<T> result = new ArrayList<>(items);
         LinkedList<Match> results = new LinkedList<>();
         while (find()) {
             results.add(currentMatch);
         }
 
         Iterator<Match> resultsIterator = results.descendingIterator();
+        if (items.stream().noneMatch(Objects::isNull)) {
+            replaceOptimized(resultsIterator, replacement);
+        } else {
+            replaceDefault(resultsIterator, replacement);
+        }
+
+        return items;
+    }
+
+    private void replaceOptimized(Iterator<Match> resultsIterator, Function<Match, List<T>> replacement) {
+        boolean hasNulls = false;
+
         while (resultsIterator.hasNext()) {
             Match current = resultsIterator.next();
-            List<T> matchedView = result.subList(current.getStart(), current.getEnd());
+            List<T> replacementList = replacement.apply(current);
+            int insertionStart = current.getStart();
+            int insertionEnd = current.getEnd();
+            int insertionLengthDelta = (replacementList != null ? replacementList.size() : 0) - current.getSize();
+
+            if (insertionLengthDelta <= 0 && replacementList == null) {
+                for (int i = insertionStart; i < insertionEnd; i++) {
+                    items.set(i, null);
+                    hasNulls = true;
+                }
+
+            } else if (insertionLengthDelta <= 0) {
+                int cursor = insertionStart;
+                for (int i = 0; i < CollectionUtils.size(replacementList); i++) {
+                    items.set(cursor++, replacementList.get(i));
+                }
+                for (int i = cursor; i < insertionEnd; i++) {
+                    items.set(i, null);
+                    hasNulls = true;
+                }
+
+            } else {
+                assert replacementList != null;
+                int cursor = 0;
+                for (int i = insertionStart; i < insertionEnd; i++) {
+                    items.set(i, replacementList.get(cursor++));
+                }
+                items.addAll(insertionEnd, replacementList.subList(cursor, replacementList.size()));
+            }
+        }
+        if (hasNulls) {
+            items = items.stream().filter(Objects::nonNull).collect(Collectors.toList());
+        }
+    }
+
+    private void replaceDefault(Iterator<Match> resultsIterator, Function<Match, List<T>> replacement) {
+        while (resultsIterator.hasNext()) {
+            Match current = resultsIterator.next();
+            List<T> matchedView = items.subList(current.getStart(), current.getEnd());
             List<T> replacementList = replacement.apply(current);
             matchedView.clear();
             if (CollectionUtils.isNotEmpty(replacementList)) {
-                result.addAll(current.getStart(), replacementList);
+                items.addAll(current.getStart(), replacementList);
             }
         }
-        return result;
+    }
+
+    /* ---------------
+       Splitting logic
+       --------------- */
+
+    /**
+     * Splits the handled sequence in chunks between the current pattern, then iterates the chunks. If the pattern is
+     * not found, the whole sequence is returned
+     * @return {@code Iterator} instance. On each successful iteration, a {@code List} containing the items that belong
+     * to the current chunk is returned. The list might be empty if the matched pattern is situated at the very
+     * beginning or the very end of the sequence
+     */
+    @Nonnull
+    public Iterator<List<T>> split() {
+        return new Iterator<List<T>>() {
+            private int lastPosition = 0;
+
+            @Override
+            public boolean hasNext() {
+                return CollectionUtils.isNotEmpty(items) && lastPosition < items.size();
+            }
+
+            @Override
+            public List<T> next() {
+                if (findAtPosition(lastPosition)) {
+                    lastPosition = getEnd();
+                } else {
+                    lastPosition = items.size();
+                }
+                return items.subList(lastPosition + getSize(), getEnd());
+            }
+        };
     }
 }
