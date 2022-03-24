@@ -3,6 +3,8 @@ package com.paperspacecraft.scripting.pattern;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.stream.Collectors;
+
 public class PseudoRegexGroupsTest {
 
     @Test
@@ -176,7 +178,7 @@ public class PseudoRegexGroupsTest {
 
     @Test
     public void shouldCaptureGroupWithInsideQuantifier() {
-        Matcher<Character> matcher = PseudoRegexTestsHelper.getMatcher("a(be?)cd", "abcd");
+        Matcher<Character> matcher = PseudoRegexTestsHelper.getMatcher("a(be?)+cd", "abcd");
         Assert.assertTrue(matcher.find());
         Assert.assertNotNull(matcher.getGroups());
         Assert.assertEquals(2, matcher.getGroups().size());

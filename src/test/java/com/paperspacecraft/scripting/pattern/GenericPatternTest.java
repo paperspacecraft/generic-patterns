@@ -1,12 +1,8 @@
 package com.paperspacecraft.scripting.pattern;
 
-import org.apache.commons.lang3.ArrayUtils;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 public class GenericPatternTest {
 
