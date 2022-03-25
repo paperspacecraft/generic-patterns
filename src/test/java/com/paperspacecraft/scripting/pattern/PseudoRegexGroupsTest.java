@@ -218,11 +218,6 @@ public class PseudoRegexGroupsTest {
         Assert.assertEquals(1, matcher.getGroups().get(1).getStart());
         Assert.assertEquals(2, matcher.getGroups().get(1).getSize());
         Assert.assertFalse(matcher.find());
-
-        Assert.assertTrue(matcher.find());
-        Assert.assertNotNull(matcher.getGroup());
-        Assert.assertEquals(9, matcher.getGroup().getStart());
-        Assert.assertEquals(4, matcher.getGroup().getSize());
     }
 
     @Test
