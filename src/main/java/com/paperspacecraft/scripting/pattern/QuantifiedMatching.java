@@ -115,7 +115,7 @@ abstract class QuantifiedMatching<T> extends GenericPattern<T> {
             }
 
             // If the current result is no match but the quantifier allows zero matches, and there's a sibling pattern
-            // element that matches the current item, we report success based on the sibling math
+            // element that matches the current item, we report success based on the sibling match
             if (!currentResult.isSuccess() && min == 0) {
                 Match siblingResult = getSiblingMatch(items, nextPosition, Match.fail());
                 if (siblingResult.isSuccess()) {
@@ -129,7 +129,7 @@ abstract class QuantifiedMatching<T> extends GenericPattern<T> {
             // Note that we don't create a capturing group for this case
             if (!currentResult.isSuccess()) {
                 if (min == 0) {
-                    return getSiblingMatch(items, nextPosition, Match.success(nextPosition));
+                    return getSiblingMatch(items, nextPosition, Match.incomplete(nextPosition));
                 }
                 return Match.fail();
             }
@@ -164,12 +164,13 @@ abstract class QuantifiedMatching<T> extends GenericPattern<T> {
             matchCount++;
             nextPosition = currentResult.getEnd();
 
-            if (matchCount == max) {
-                Match terminal = Match
-                        .success(position, nextPosition)
-                        .and(getSiblingMatch(items, nextPosition, Match.success(nextPosition)))
+            if (matchCount >= max) {
+                Match terminalMatch = currentResult.isComplete()
+                        ? Match.success(position, nextPosition)
+                        : Match.incomplete(position, nextPosition);
+                terminalMatch = terminalMatch.and(getSiblingMatch(items, nextPosition, Match.success(nextPosition)))
                         .withGroups(groups.getItems());
-                return Pair.of(terminal, true);
+                return Pair.of(terminalMatch, true);
 
             } else if (!isExactNumberNeeded() && matchCount >= min) {
 
