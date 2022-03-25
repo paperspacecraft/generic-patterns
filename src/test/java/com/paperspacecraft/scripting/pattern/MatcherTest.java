@@ -121,6 +121,7 @@ public class MatcherTest {
         Assert.assertEquals(16, matcher.getStart());
         Assert.assertFalse(matcher.find());
     }
+
     @Test
     public void shouldProcessSerialMatches2() {
         Matcher<Integer> matcher = GenericPattern
@@ -141,6 +142,39 @@ public class MatcherTest {
         Assert.assertEquals(2, (int) hits.get(0));
         Assert.assertEquals(42, (int) hits.get(1));
         Assert.assertEquals(42, (int) hits.get(2));
+    }
+
+    @Test
+    public void shouldProcessAlternatives() {
+        Matcher<Integer> matcher = GenericPattern
+                .<Integer>instance()
+                .token(2)
+                .token(16).or(15)
+                .token(42)
+                .matcher(SEQUENCE);
+        Assert.assertTrue(matcher.find());
+        Assert.assertEquals(0, matcher.getStart());
+        Assert.assertEquals(3, matcher.getSize());
+
+        matcher = GenericPattern
+                .<Integer>instance()
+                .token(2)
+                .token(GenericPattern.<Integer>instance().token(16))
+                    .or(GenericPattern.<Integer>instance().token(15).token(42).zeroOrMore())
+                .matcher(SEQUENCE);
+        Assert.assertTrue(matcher.find());
+        Assert.assertEquals(0, matcher.getStart());
+        Assert.assertEquals(4, matcher.getSize());
+
+        matcher = GenericPattern
+                .<Integer>instance()
+                .token(16)
+                    .or(15)
+                    .or(t -> t % 10 == 2).tag("group").oneOrMore()
+                .matcher(SEQUENCE);
+        Assert.assertTrue(matcher.find());
+        Assert.assertEquals(0, matcher.getStart());
+        Assert.assertEquals(5, matcher.getSize());
     }
 }
 

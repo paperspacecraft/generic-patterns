@@ -3,6 +3,8 @@ package com.paperspacecraft.scripting.pattern;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.stream.Collectors;
 
 public class PseudoRegexGroupsTest {
@@ -106,6 +108,13 @@ public class PseudoRegexGroupsTest {
         Assert.assertEquals(3, matcher.getGroups().get(2).getStart());
         Assert.assertEquals(3, matcher.getGroups().get(2).getSize());
 
+        matcher = PseudoRegexTestsHelper.getMatcher("a(bc)*", "abc");
+        Assert.assertTrue(matcher.find());
+        Assert.assertNotNull(matcher.getGroups());
+        Assert.assertEquals(2, matcher.getGroups().size());
+        Assert.assertEquals(1, matcher.getGroups().get(1).getStart());
+        Assert.assertEquals(2, matcher.getGroups().get(1).getSize());
+
         matcher = PseudoRegexTestsHelper.getMatcher("a(bc)*d", "ad");
         Assert.assertTrue(matcher.find());
         Assert.assertNotNull(matcher.getGroups());
@@ -198,5 +207,48 @@ public class PseudoRegexGroupsTest {
         Assert.assertEquals(2, matcher.getGroups().size());
         Assert.assertEquals(2, matcher.getGroups().get(1).getStart());
         Assert.assertEquals(2, matcher.getGroups().get(1).getSize());
+    }
+
+    @Test
+    public void shouldCaptureAlternativeGroups() {
+        Matcher<Character> matcher = PseudoRegexTestsHelper.getMatcher("a(de|bc)d", "abcd");
+        Assert.assertTrue(matcher.find());
+        Assert.assertNotNull(matcher.getGroups());
+        Assert.assertEquals(2, matcher.getGroups().size());
+        Assert.assertEquals(1, matcher.getGroups().get(1).getStart());
+        Assert.assertEquals(2, matcher.getGroups().get(1).getSize());
+        Assert.assertFalse(matcher.find());
+
+        Assert.assertTrue(matcher.find());
+        Assert.assertNotNull(matcher.getGroup());
+        Assert.assertEquals(9, matcher.getGroup().getStart());
+        Assert.assertEquals(4, matcher.getGroup().getSize());
+    }
+
+    @Test
+    public void shouldCaptureAlternativeGroupsWithQuantifier() {
+        List<String> patterns = Arrays.asList(
+                "\\w(bar|der)+",
+                "\\w(bar|der)*",
+                "\\w(bar|der)?");
+        for (int i = 0; i < patterns.size(); i++) {
+            String pattern = patterns.get(i);
+            Matcher<Character> matcher = PseudoRegexTestsHelper.getMatcher(pattern, "debarbarcadere");
+            Assert.assertTrue(matcher.find());
+            Assert.assertNotNull(matcher.getGroup());
+            Assert.assertNotNull(matcher.getGroups());
+            Assert.assertEquals(2, matcher.getGroups().size());
+            Assert.assertEquals(1, matcher.getGroup().getStart());
+            Assert.assertEquals(i < 2 ? 7 : 4, matcher.getGroup().getSize());
+
+            Assert.assertTrue(matcher.find());
+            Assert.assertNotNull(matcher.getGroup());
+            Assert.assertEquals(9, matcher.getGroup().getStart());
+            Assert.assertEquals(4, matcher.getGroup().getSize());
+            Assert.assertNotNull(matcher.getGroups());
+            Group capturingGroup = matcher.getGroups().get(1);
+            Assert.assertEquals(10, capturingGroup.getStart());
+            Assert.assertEquals(3, capturingGroup.getSize());
+        }
     }
 }

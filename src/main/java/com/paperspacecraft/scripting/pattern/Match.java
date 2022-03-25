@@ -24,11 +24,13 @@ import java.util.List;
  */
 public class Match implements MatchInfoProvider, GroupInfoProvider {
 
-    private static final Match FAIL = new Match(false, -1, -1);
+    private static final Match FAIL = new Match(false, -1, -1, false);
 
     private final boolean success;
     private final int start;
     private final int end;
+
+    private boolean complete;
 
     private List<Group> groups;
 
@@ -38,10 +40,11 @@ public class Match implements MatchInfoProvider, GroupInfoProvider {
      * @param start   The start position of the match
      * @param end     The end position of the match
      */
-    private Match(boolean success, int start, int end) {
+    private Match(boolean success, int start, int end, boolean complete) {
         this.success = success;
         this.start = start;
         this.end = end;
+        this.complete = complete;
     }
 
     /* ---------
@@ -81,6 +84,17 @@ public class Match implements MatchInfoProvider, GroupInfoProvider {
         return groups;
     }
 
+    /**
+     * Gets whether the current match is complete. A match is considered "complete" if there wasn't a terminating
+     * subpattern that would allow zero hits, or else such subpattern is present, and it has actual hits. Otherwise, the
+     * match is "incomplete". An incomplete match is put off when running {@link Matcher#find()} until a complete match
+     * is found
+     * @return True or false
+     */
+    boolean isComplete() {
+        return complete;
+    }
+
     /* ---------------------------
        Utility composition methods
        --------------------------- */
@@ -111,7 +125,9 @@ public class Match implements MatchInfoProvider, GroupInfoProvider {
             return this;
         }
         if (success && other.success) {
-            Match result = success(Math.min(this.start, other.start), Math.max(this.end, other.end));
+            Match result = this.complete
+                    ? success(Math.min(this.start, other.start), Math.max(this.end, other.end))
+                    : incomplete(Math.min(this.start, other.start), Math.max(this.end, other.end));
             if (groups != null) {
                 result.groups = groups;
             }
@@ -119,6 +135,9 @@ public class Match implements MatchInfoProvider, GroupInfoProvider {
                 result.groups.addAll(other.groups);
             } else if (other.groups != null) {
                 result.groups = other.groups;
+            }
+            if (!other.complete) {
+                result.complete = false;
             }
             return result;
         }
@@ -135,7 +154,7 @@ public class Match implements MatchInfoProvider, GroupInfoProvider {
      * @return {@link Match} instance
      */
     static Match success(int start) {
-        return new Match(true, start, start);
+        return new Match(true, start, start, true);
     }
 
     /**
@@ -145,7 +164,28 @@ public class Match implements MatchInfoProvider, GroupInfoProvider {
      * @return {@link Match} instance
      */
     static Match success(int start, int end) {
-        return new Match(true, start, end);
+        return new Match(true, start, end, true);
+    }
+
+    /**
+     * Retrieves the zero-sized incomplete successful match
+     * @param start The start position of the match
+     * @return {@link Match} instance
+     * @see Match#isComplete()
+     */
+    static Match incomplete(int start) {
+        return new Match(true, start, start, false);
+    }
+
+    /**
+     * Retrieves an incomplete successful match starting as the given position with the provided size
+     * @param start The start position of the match
+     * @param end   The end position of the match
+     * @return {@link Match} instance
+     * @see Match#isComplete()
+     */
+    static Match incomplete(int start, int end) {
+        return new Match(true, start, end, false);
     }
 
     /**

@@ -22,22 +22,22 @@ import java.util.List;
  */
 class GroupMatching<T> extends QuantifiedMatching<T> {
 
-    private final GenericPattern<T> parent;
+    private final GenericPattern<T> entryPoint;
 
     /**
      * Instance constructor
-     * @param parent The {@link GenericPattern} to which this group belongs
+     * @param entryPoint The {@link GenericPattern} to which this group belongs
      */
-    public GroupMatching(GenericPattern<T> parent) {
-        this.parent = parent;
+    public GroupMatching(GenericPattern<T> entryPoint) {
+        this.entryPoint = entryPoint;
     }
 
     /**
      * Retrieves the {@link GenericPattern} to which this group belongs
      * @return {@code GenericPatter} object
      */
-    GenericPattern<T> getParent() {
-        return parent;
+    GenericPattern<T> getEntryPoint() {
+        return entryPoint;
     }
 
     /**
@@ -46,7 +46,9 @@ class GroupMatching<T> extends QuantifiedMatching<T> {
     @Override
     void appendAsSibling(GenericPattern<T> value) {
         super.appendAsSibling(value);
-        parent.getLast().appendAsUpstream(value);
+        if (entryPoint.getLast().getUpstream() == null) {
+            entryPoint.getLast().appendAsUpstream(value);
+        }
     }
 
     /**
@@ -54,7 +56,7 @@ class GroupMatching<T> extends QuantifiedMatching<T> {
      */
     @Override
     Match findOne(List<T> items, int position) {
-        return parent.findQuantified(items, position);
+        return entryPoint.findQuantified(items, position);
     }
 
     /**
@@ -70,7 +72,7 @@ class GroupMatching<T> extends QuantifiedMatching<T> {
      */
     @Override
     boolean mustBeFirst() {
-        return super.mustBeFirst() || parent.mustBeFirst();
+        return super.mustBeFirst() || entryPoint.mustBeFirst();
     }
 
     /**
@@ -78,6 +80,6 @@ class GroupMatching<T> extends QuantifiedMatching<T> {
      */
     @Override
     boolean mustBeLast() {
-        return super.mustBeLast() || parent.getLast().mustBeLast();
+        return super.mustBeLast() || entryPoint.getLast().mustBeLast();
     }
 }

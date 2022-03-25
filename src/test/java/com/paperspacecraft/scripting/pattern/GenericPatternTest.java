@@ -12,11 +12,17 @@ public class GenericPatternTest {
     public void init() {
         pattern = GenericPattern
                 .instance()
-                .token("a").tag("a")
-                .token("b").tag("b")
-                .group(GenericPattern.instance().token("d").build())
-                .token("c").tag("c")
-                .oneOrMore()
+                .token("a1").or("a2").tag("a")
+                .token("b").tag("b").oneOrMore()
+                .token(GenericPattern.instance().token("g1.1").token("g1.2")).tag("g1")
+                .token("c1")
+                    .or("c2")
+                    .or("с3")
+                    .tag("c")
+                .token(GenericPattern.instance().token("g2.1").token("g2.2"))
+                    .or(GenericPattern.instance().token("g2.3").token("g2.4"))
+                    .tag("g2")
+                .token("d").tag("d")
                 .build();
     }
 
@@ -24,19 +30,29 @@ public class GenericPatternTest {
     public void shouldCreateTaggedPattern() {
         // The "overall" always represents a capturing group
         Assert.assertTrue(pattern instanceof GroupMatching);
-        GenericPattern<Object> parent = ((GroupMatching<Object>) pattern).getParent();
-        Assert.assertEquals("a", parent.getTag());
-        Assert.assertEquals("b", parent.getNext().getTag());
-        Assert.assertEquals("c", parent.getNext().getNext().getNext().getTag());
+        GenericPattern<Object> entryPoint = ((GroupMatching<Object>) pattern).getEntryPoint();
+        Assert.assertEquals("a", entryPoint.getTag());
+        Assert.assertEquals("b", entryPoint.getNext().getTag());
+        Assert.assertEquals("g1", entryPoint.getNext().getNext().getTag());
+        Assert.assertEquals("c", entryPoint.getNext().getNext().getNext().getTag());
     }
 
     @Test
     public void shouldCreateUpstreamLinks() {
         Assert.assertTrue(pattern instanceof GroupMatching);
-        GenericPattern<Object> parent = ((GroupMatching<Object>) pattern).getParent();
-        Assert.assertTrue(parent.getNext().getNext() instanceof GroupMatching);
+        GenericPattern<Object> entryPoint = ((GroupMatching<Object>) pattern).getEntryPoint();
+        Assert.assertTrue(entryPoint.getNext().getNext() instanceof GroupMatching);
         Assert.assertEquals(
-                ((GroupMatching<Object>) parent.getNext().getNext()).getParent().getUpstream(),
-                parent.getNext().getNext().getNext());
+                ((GroupMatching<Object>) entryPoint.getNext().getNext()).getEntryPoint().getNext().getUpstream(),
+                entryPoint.getNext().getNext().getNext());
+    }
+
+    @Test
+    public void shouldCreateAlternatives() {
+        Assert.assertTrue(pattern instanceof GroupMatching);
+        GenericPattern<Object> entryPoint = ((GroupMatching<Object>) pattern).getEntryPoint();
+        Assert.assertTrue(entryPoint.getNext().getNext().getNext() instanceof AlternativeMatching);
+        AlternativeMatching<Object> alternativeMatching = (AlternativeMatching<Object>) entryPoint.getNext().getNext().getNext();
+        Assert.assertEquals(3, alternativeMatching.getAlternatives().size());
     }
 }

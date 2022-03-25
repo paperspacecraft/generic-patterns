@@ -103,6 +103,7 @@ public class Matcher<T> implements MatchInfoProvider, GroupInfoProvider {
         if (CollectionUtils.isEmpty(items) || (position > 0 && pattern.mustBeFirst())) {
             return false;
         }
+        Match challenger = null;
         for (int i = position; i < items.size(); i++) {
             if (i > 0 && pattern.mustBeFirst()) {
                 reset();
@@ -112,9 +113,17 @@ public class Matcher<T> implements MatchInfoProvider, GroupInfoProvider {
             if (match.isSuccess()
                     && match.getSize() > 0
                     && isProperClosing(i, match.getSize())) {
-                currentMatch = match;
-                return true;
+                if (match.isComplete()) {
+                    currentMatch = match;
+                    return true;
+                } else if (challenger == null){
+                    challenger = match;
+                }
             }
+        }
+        if (challenger != null) {
+            currentMatch = challenger;
+            return true;
         }
         reset();
         return false;
