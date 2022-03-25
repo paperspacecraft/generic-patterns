@@ -47,6 +47,10 @@ class PseudoRegexTestsHelper {
     }
 
     private static GenericPattern<Character> getPattern(String value, int start, int end) {
+        return getPattern(value, start, end, null);
+    }
+
+    private static GenericPattern<Character> getPattern(String value, int start, int end, String tag) {
         GenericPattern.Builder<Character> builder = GenericPattern.instance();
 
         int position = start;
@@ -80,6 +84,11 @@ class PseudoRegexTestsHelper {
                 builder = builderIntegerPair.getLeft();
                 position = builderIntegerPair.getRight();
 
+            } else if (current == '[') {
+                Pair<GenericPattern.Token<Character>, Integer> builderIntegerPair = processAlternatives(builder, value, position);
+                builder = builderIntegerPair.getLeft();
+                position = builderIntegerPair.getRight();
+
             } else if (current == '{') {
                 Pair<Pair<Integer, Integer>, Integer> quantifierPair = processComplexQuantifier(value, position);
                 Pair<Integer, Integer> quantifiers = quantifierPair.getLeft();
@@ -91,8 +100,11 @@ class PseudoRegexTestsHelper {
             }
             position++;
         }
-
-        return builder.build();
+        GenericPattern<Character> result = builder.build();
+        if (tag != null){
+            result.setTag(tag);
+        }
+        return result;
     }
 
     private static GenericPattern.Builder<Character> processSpecialSequence(
@@ -150,20 +162,45 @@ class PseudoRegexTestsHelper {
             String value,
             int position) {
 
-        int closingBracketPosition = findClosingBracket(value, position);
+        int closingBracketPosition = findClosingBracket(value, '(', ')', position);
+        int splitterPosition = value.substring(position, closingBracketPosition).indexOf('|');
+
+        if (splitterPosition > -1) {
+            splitterPosition += position;
+            String sequence1Tag = '(' + value.substring(position + 1, splitterPosition) + ')';
+            GenericPattern<Character> sequence1 = getPattern(value, position + 1, splitterPosition, sequence1Tag);
+            String sequence2Tag = '(' + value.substring(splitterPosition + 1, closingBracketPosition) + ')';
+            GenericPattern<Character> sequence2 = getPattern(value, splitterPosition + 1, closingBracketPosition, sequence2Tag);
+            return Pair.of(
+                    builder.token(sequence1).or(sequence2).tag(sequence1Tag + sequence2Tag),
+                    closingBracketPosition);
+        }
         GenericPattern<Character> group = getPattern(value, position + 1, closingBracketPosition);
         return Pair.of(
-                builder.group(group).tag('(' + value.substring(position + 1, closingBracketPosition) + ')'),
+                builder.token(group).tag('(' + value.substring(position + 1, closingBracketPosition) + ')'),
                 closingBracketPosition);
     }
 
-    private static int findClosingBracket(String value, int position) {
+    private static Pair<GenericPattern.Token<Character>, Integer> processAlternatives(
+            GenericPattern.Builder<Character> builder,
+            String value,
+            int position) {
+
+        int closingBracketPosition = findClosingBracket(value, '[', ']', position);
+        GenericPattern.Token<Character> token = builder.token(value.charAt(position + 1));
+        for (int i = position + 2; i < closingBracketPosition; i++) {
+            token.or(value.charAt(i));
+        }
+        return Pair.of(token, closingBracketPosition);
+    }
+
+    private static int findClosingBracket(String value, char openingBracket, char closingBracket, int position) {
         int openingCount = 0;
         int closingCount = 0;
         for (int i = position; i < value.length(); i++) {
-            if (value.charAt(i) == '(') {
+            if (value.charAt(i) == openingBracket) {
                 openingCount++;
-            } else if (value.charAt(i) == ')') {
+            } else if (value.charAt(i) == closingBracket) {
                 closingCount++;
             }
             if (openingCount == closingCount) {
