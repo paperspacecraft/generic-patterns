@@ -26,8 +26,28 @@ import java.util.function.Predicate;
  */
 public abstract class GenericPattern<T> {
 
+    /**
+     * Link to a next sibling; used in processing pattern chains
+     */
     private GenericPattern<T> next;
+
+    /**
+     * Link to a previous sibling; used to replace and dispose of a pattern in a chain without breaking the chain
+     * consistency
+     */
+    private GenericPattern<T> previous;
+
+    /**
+     * Link to an "upstream" sibling (usually added to the training element in a capturing group so that the matching
+     * could proceed "after" the group despite the last group's element not having a "next" sibling
+     */
     private GenericPattern<T> upstream;
+
+    /**
+     * A reverse link to the pattern element that has its {@code upstream} value pointing to the current element. Used
+     * to replace and dispose of a pattern in a chain without breaking the chain consistency
+     */
+    private GenericPattern<T> downstream;
 
     private boolean mustBeFirst;
     private boolean mustBeLast;
@@ -78,8 +98,8 @@ public abstract class GenericPattern<T> {
     }
 
     /**
-     * Retrieves a {@link Match} object characterizing whether the given sequence fits in the patter if started
-     * from the given position
+     * Retrieves a {@link Match} object characterizing whether the given sequence fits in the patter if started from the
+     * given position
      * @param items    The sequence to which the pattern is applied; an arbitrary-typed collection
      * @param position The position from which to start probing for the pattern
      * @return {@code MatchingResult} object
@@ -92,8 +112,8 @@ public abstract class GenericPattern<T> {
     }
 
     /**
-     * Called by {@link GenericPattern#getMatch(List, int)} to retrieve a match for the given entity sequence
-     * and position that honors the possible quantifiers assigned to pattern elements
+     * Called by {@link GenericPattern#getMatch(List, int)} to retrieve a match for the given entity sequence and
+     * position that honors the possible quantifiers assigned to pattern elements
      * @param items    The sequence to which the pattern is applied; an arbitrary-typed list
      * @param position The position from which to start probing for the pattern
      * @return {@link Match} object
@@ -103,6 +123,14 @@ public abstract class GenericPattern<T> {
     /* ------------------------------
        Non-public structuring methods
        ------------------------------ */
+
+    /**
+     * Retrieves the previous pattern element in the chain of patterns
+     * @return {@link GenericPattern} instance
+     */
+    final GenericPattern<T> getPrevious() {
+        return previous;
+    }
 
     /**
      * Retrieves the next pattern element in the chain of patterns
@@ -137,9 +165,26 @@ public abstract class GenericPattern<T> {
     void appendAsSibling(GenericPattern<T> value) {
         if (next == null) {
             next = value;
+            value.previous = this;
         } else {
             next.appendAsSibling(value);
         }
+    }
+
+    /**
+     * Replaces the "next" element of the current pattern with a new sibling pattern
+     * @param value {@link GenericPattern} object
+     */
+    final void replaceSibling(GenericPattern<T> value) {
+        if (next != null) {
+            if (next.downstream != null) {
+                next.downstream.upstream = value;
+            }
+            next.downstream = null;
+            next.previous = null;
+        }
+        next = value;
+        value.previous = this;
     }
 
     /**
@@ -149,6 +194,7 @@ public abstract class GenericPattern<T> {
      */
     final void appendAsUpstream(GenericPattern<T> value) {
         upstream = value;
+        value.downstream = this;
     }
 
     /* ---------------
@@ -156,12 +202,19 @@ public abstract class GenericPattern<T> {
        --------------- */
 
     /**
-     * Retrieves an arbitrary string assigned to this instance. Used to store and retrieve additional info (vid. for
-     * debugging)
+     * Retrieves an arbitrary string assigned to this instance. Used to retrieve additional info (vid. for debugging)
      * @return Nullable string value
      */
     String getTag() {
         return tag;
+    }
+
+    /**
+     * Assigns an arbitrary string to this instance. Used to store additional info (vid. for debugging)
+     * @param tag String value
+     */
+    void setTag(String tag) {
+        this.tag = tag;
     }
 
     /* ---------------
@@ -244,7 +297,7 @@ public abstract class GenericPattern<T> {
          */
         default Token<T> token(Predicate<T> predicate) {
             SingleMatching<T> matching = new SingleMatching<>(predicate);
-            return group(matching);
+            return token(matching);
         }
 
         /**
@@ -252,8 +305,8 @@ public abstract class GenericPattern<T> {
          * @param builder A builder that creates a nested {@code GenericPattern} describing the group
          * @return Builder instance
          */
-        default Token<T> group(GenericPattern.Builder<T> builder) {
-            return group(builder.build());
+        default Token<T> token(GenericPattern.Builder<T> builder) {
+            return token(builder.build());
         }
 
         /**
@@ -261,7 +314,7 @@ public abstract class GenericPattern<T> {
          * @param pattern A nested {@code GenericPattern} that describes the group
          * @return Builder instance
          */
-        Token<T> group(GenericPattern<T> pattern);
+        Token<T> token(GenericPattern<T> pattern);
     }
 
     /**
@@ -277,13 +330,53 @@ public abstract class GenericPattern<T> {
         Builder<T> beginning();
     }
 
+    /**
+     * Represents a pattern builder that can assign an alternative to a token that was added before the current
+     * operation
+     * @param <T> Type of the entity this pattern will manage
+     */
+    private interface Alternative<T> {
+
+        /**
+         * Adds an alternative value to a token
+         * @param sample The object used as the sample to compare a sequence member to
+         * @return Builder instance
+         */
+        default Token<T> or(T sample) {
+            return or(arg -> Objects.equals(arg, sample));
+        }
+
+        /**
+         * Adds an alternative value to a token
+         * @param predicate The predicate used to probe a sequence member to
+         * @return Builder instance
+         */
+        Token<T> or(Predicate<T> predicate);
+
+        /**
+         * Adds an alternative capturing group
+         * @param builder A builder that creates a nested {@code GenericPattern} describing the group
+         * @return Builder instance
+         */
+        default Token<T> or(GenericPattern.Builder<T> builder) {
+            return or(builder.build());
+        }
+
+        /**
+         * Adds to the pattern a capturing group
+         * @param pattern A nested {@code GenericPattern} that describes the group
+         * @return Builder instance
+         */
+        Token<T> or(GenericPattern<T> pattern);
+    }
+
 
     /**
      * Represents a pattern builder that can assign a quantifier or else the "ending" flag to a token that was added
-     * immediately before the current operation
+     * before the current operation
      * @param <T> Type of the entity this pattern will manage
      */
-    public interface Token<T> extends Builder<T> {
+    public interface Token<T> extends Builder<T>, Alternative<T> {
 
         /**
          * Assign the "zero or one" quantifier (equivalent to the {@code ?} in RegExp
@@ -353,7 +446,7 @@ public abstract class GenericPattern<T> {
         }
 
         @Override
-        public Token<T> group(GenericPattern<T> pattern) {
+        public Token<T> token(GenericPattern<T> pattern) {
             store(pattern);
             return new TokenImpl<>(this, pattern);
         }
@@ -372,6 +465,24 @@ public abstract class GenericPattern<T> {
             }
         }
 
+        private void storeAlternative(GenericPattern<T> matching) {
+            if (pattern == null) {
+                store(matching);
+                return;
+            }
+            GenericPattern<T> last = pattern.getLast();
+            if (last instanceof AlternativeMatching) {
+                ((AlternativeMatching<T>) last).getAlternatives().add(matching);
+                return;
+            }
+            GenericPattern<T> penultimate = pattern.getLast().getPrevious();
+            if (penultimate != null) {
+                penultimate.replaceSibling(new AlternativeMatching<>(last, matching));
+            } else {
+                pattern = new AlternativeMatching<>(pattern, matching);
+            }
+        }
+
         private void setTag(String value) {
             if (pattern == null) {
                 return;
@@ -383,7 +494,7 @@ public abstract class GenericPattern<T> {
     private static class TokenImpl<T> implements Token<T> {
 
         private final BuilderImpl<T> commonBuilder;
-        private final GenericPattern<T> pattern;
+        private GenericPattern<T> pattern;
 
         public TokenImpl(BuilderImpl<T> builder, GenericPattern<T> pattern) {
             this.commonBuilder = builder;
@@ -391,8 +502,20 @@ public abstract class GenericPattern<T> {
         }
 
         @Override
-        public Token<T> group(GenericPattern<T> pattern) {
-            return commonBuilder.group(pattern);
+        public Token<T> token(GenericPattern<T> pattern) {
+            return commonBuilder.token(pattern);
+        }
+
+        @Override
+        public Token<T> or(Predicate<T> predicate) {
+            return or(new SingleMatching<>(predicate));
+        }
+
+        @Override
+        public Token<T> or(GenericPattern<T> pattern) {
+            commonBuilder.storeAlternative(pattern);
+            this.pattern = commonBuilder.pattern.getLast();
+            return this;
         }
 
         @Override
