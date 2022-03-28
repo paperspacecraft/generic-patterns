@@ -23,9 +23,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Objects;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /**
  * Performs matching and replacing operations on a sequence of arbitrary objects using a {@link GenericPattern}
@@ -34,7 +32,7 @@ import java.util.stream.Collectors;
 public class Matcher<T> implements MatchInfoProvider, GroupInfoProvider {
 
     private final GenericPattern<T> pattern;
-    private List<T> items;
+    private final List<T> items;
 
     private Match currentMatch;
 
@@ -107,7 +105,7 @@ public class Matcher<T> implements MatchInfoProvider, GroupInfoProvider {
         for (int i = position; i < items.size(); i++) {
             if (i > 0 && pattern.mustBeFirst()) {
                 reset();
-                return false;
+                break;
             }
             Match match = pattern.getMatch(items, i);
             if (match.isSuccess()
@@ -209,18 +207,12 @@ public class Matcher<T> implements MatchInfoProvider, GroupInfoProvider {
         }
 
         Iterator<Match> resultsIterator = results.descendingIterator();
-        if (items.stream().noneMatch(Objects::isNull)) {
-            replaceOptimized(resultsIterator, replacement);
-        } else {
-            replaceDefault(resultsIterator, replacement);
-        }
+        replaceWithList(resultsIterator, replacement);
 
         return items;
     }
 
-    private void replaceOptimized(Iterator<Match> resultsIterator, Function<Match, List<T>> replacement) {
-        boolean hasNulls = false;
-
+    private void replaceWithList(Iterator<Match> resultsIterator, Function<Match, List<T>> replacement) {
         while (resultsIterator.hasNext()) {
             Match current = resultsIterator.next();
             List<T> replacementList = replacement.apply(current);
@@ -229,9 +221,9 @@ public class Matcher<T> implements MatchInfoProvider, GroupInfoProvider {
             int insertionLengthDelta = (replacementList != null ? replacementList.size() : 0) - current.getSize();
 
             if (insertionLengthDelta <= 0 && replacementList == null) {
+                items.subList(insertionStart, insertionEnd).clear();
                 for (int i = insertionStart; i < insertionEnd; i++) {
                     items.set(i, null);
-                    hasNulls = true;
                 }
 
             } else if (insertionLengthDelta <= 0) {
@@ -239,10 +231,7 @@ public class Matcher<T> implements MatchInfoProvider, GroupInfoProvider {
                 for (int i = 0; i < CollectionUtils.size(replacementList); i++) {
                     items.set(cursor++, replacementList.get(i));
                 }
-                for (int i = cursor; i < insertionEnd; i++) {
-                    items.set(i, null);
-                    hasNulls = true;
-                }
+                items.subList(cursor, insertionEnd).clear();
 
             } else {
                 assert replacementList != null;
@@ -251,21 +240,6 @@ public class Matcher<T> implements MatchInfoProvider, GroupInfoProvider {
                     items.set(i, replacementList.get(cursor++));
                 }
                 items.addAll(insertionEnd, replacementList.subList(cursor, replacementList.size()));
-            }
-        }
-        if (hasNulls) {
-            items = items.stream().filter(Objects::nonNull).collect(Collectors.toList());
-        }
-    }
-
-    private void replaceDefault(Iterator<Match> resultsIterator, Function<Match, List<T>> replacement) {
-        while (resultsIterator.hasNext()) {
-            Match current = resultsIterator.next();
-            List<T> matchedView = items.subList(current.getStart(), current.getEnd());
-            List<T> replacementList = replacement.apply(current);
-            matchedView.clear();
-            if (CollectionUtils.isNotEmpty(replacementList)) {
-                items.addAll(current.getStart(), replacementList);
             }
         }
     }

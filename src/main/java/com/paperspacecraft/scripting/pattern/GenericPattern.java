@@ -315,6 +315,12 @@ public abstract class GenericPattern<T> {
          * @return Builder instance
          */
         Token<T> token(GenericPattern<T> pattern);
+
+        /**
+         * Assigns the flag saying that the current pattern element must match the trailing sequence entry
+         * @return Builder instance
+         */
+        Finalizer<T> ending();
     }
 
     /**
@@ -417,12 +423,6 @@ public abstract class GenericPattern<T> {
         Builder<T> count(int min, int max);
 
         /**
-         * Assigns the flag saying that the current pattern element must match the trailing sequence entry
-         * @return Builder instance
-         */
-        Finalizer<T> ending();
-
-        /**
          * Assigns an arbitrary string to this instance. Used to store and retrieve additional info (vid. for
          * debugging)
          * @param value Nullable string
@@ -449,6 +449,15 @@ public abstract class GenericPattern<T> {
         public Token<T> token(GenericPattern<T> pattern) {
             store(pattern);
             return new TokenImpl<>(this, pattern);
+        }
+
+        @Override
+        public Finalizer<T> ending() {
+            if (pattern == null) {
+                return this;
+            }
+            pattern.getLast().mustBeLast = true;
+            return this;
         }
 
         @Override

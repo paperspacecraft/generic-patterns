@@ -5,7 +5,6 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 
 public class ReplacementTest {
@@ -54,7 +53,7 @@ public class ReplacementTest {
     }
 
     @Test
-    public void shouldReplaceWithModifierAndInflation() {
+    public void shouldReplaceWithModifierAndInflation1() {
         List<Integer> numbers = Arrays.asList(5, 7, 15, 21);
         Matcher<Integer> matcher = GenericPattern
                 .<Integer>instance()
@@ -69,7 +68,7 @@ public class ReplacementTest {
     }
 
     @Test
-    public void shouldReplaceWithModifierAndInflationUnoptimized() {
+    public void shouldReplaceWithModifierAndInflation2() {
         List<Integer> numbers = Arrays.asList(5, null, 7, 15, 21);
         Matcher<Integer> matcher = GenericPattern
                 .<Integer>instance()

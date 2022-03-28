@@ -72,6 +72,40 @@ public class MatcherTest {
     }
 
     @Test
+    public void shouldMatchIncompletePattern1() {
+        GenericPattern<Integer> matchingPattern = GenericPattern
+                .<Integer>instance()
+                .beginning()
+                .token(2)
+                .token(15)
+                .token(16).zeroOrOne()
+                .token(17).zeroOrOne()
+                .token(18).zeroOrOne()
+                .build();
+        Matcher<Integer> matcher = matchingPattern.matcher(SEQUENCE);
+        Assert.assertTrue(matcher.find());
+        Assert.assertEquals(0, matcher.getStart());
+        Assert.assertEquals(2, matcher.getSize());
+    }
+
+    @Test
+    public void shouldMatchIncompletePattern2() {
+        GenericPattern<Integer> matchingPattern = GenericPattern
+                .<Integer>instance()
+                .token(42)
+                .token(42)
+                .token(15)
+                .token(16).zeroOrOne()
+                .token(17).zeroOrOne()
+                .token(18).zeroOrOne()
+                .build();
+        Matcher<Integer> matcher = matchingPattern.matcher(SEQUENCE);
+        Assert.assertTrue(matcher.find());
+        Assert.assertEquals(2, matcher.getStart());
+        Assert.assertEquals(3, matcher.getSize());
+    }
+
+    @Test
     public void shouldProcessMatchAndGetHits() {
         String testCase = "abcabacabccbaeacbabc";
         Character[] testCaseArray = ArrayUtils.toObject(testCase.toCharArray());
@@ -95,7 +129,7 @@ public class MatcherTest {
         String testCase = "abcabacabccbaeacbabc";
         List<Character> testCaseCollection = testCase.chars().mapToObj(c -> (char) c).collect(Collectors.toList());
 
-        Matcher<Character> matcher = PseudoRegexTestsHelper.getMatcher("c(\\w+)e", "abcabacabccbaeacbabc");
+        Matcher<Character> matcher = PseudoRegexTestsHelper.getMatcher("c(\\w+)e", testCase);
         Assert.assertTrue(matcher.find());
 
         Group group = matcher.getGroup(1);
