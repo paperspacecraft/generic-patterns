@@ -85,9 +85,9 @@ abstract class QuantifiedMatching<T> extends GenericPattern<T> {
 
         /**
          * Instance constructor
-         * @param items           The sequence of arbitrary-types entities to find a match in
-         * @param position        The position in the sequence from which to start the search
-         * @param groups {@code GroupCollection} accumulating object
+         * @param items    The sequence of arbitrary-types entities to find a match in
+         * @param position The position in the sequence from which to start the search
+         * @param groups   {@code GroupCollection} accumulating object
          */
         public Finder(List<T> items, int position, GroupCollection groups) {
             this.items = items;
@@ -103,136 +103,143 @@ abstract class QuantifiedMatching<T> extends GenericPattern<T> {
             matchCount = 0;
             nextPosition = position;
 
-            // Process the first occurrence
             Match currentResult = findOne(items, nextPosition);
 
-            // If the current result is no match but the quantifier allows zero matches, and there's an upstream (i.e.,
-            // we are within the terminal member of a capturing group), we must check whether the check can continue
-            // even without a match in the current member.
-            // Note that we don't create a capturing group for this case
-            if (!currentResult.isSuccess() && min == 0 && getUpstreamMatch(items, nextPosition).isSuccess()) {
-                return Match.success(nextPosition);
-            }
-
-            // If the current result is no match but the quantifier allows zero matches, and there's a sibling pattern
-            // element that matches the current item, we report success based on the sibling match
-            if (!currentResult.isSuccess() && min == 0) {
-                Match siblingResult = getSiblingMatch(items, nextPosition, Match.fail());
-                if (siblingResult.isSuccess()) {
-                    return siblingResult;
-                }
-            }
-
-            // In other cases of no match, return an error if the quantifier requires at least one match. However,
-            // if it allows zero matches, return not an error but the zero-length success so that the overall routine is
-            // not failed.
-            // Note that we don't create a capturing group for this case
             if (!currentResult.isSuccess()) {
-                if (min == 0) {
-                    return getSiblingMatch(items, nextPosition, Match.incomplete(nextPosition));
-                }
-                return Match.fail();
+                return handleZeroLengthMatch(nextPosition);
             }
 
-            // Now there's a match. Process all the available occurrences. We do this in a loop. Counters are
-            // incremented at the loop start to account for the match that has already been received
             while (currentResult.isSuccess()) {
-                Pair<Match, Boolean> resultAndBreak = consumeMatchAndAdvance(currentResult);
-                if (resultAndBreak.getRight()) {
-                    return resultAndBreak.getLeft();
+                Pair<Match, Boolean> matchAndBreaking = handleMatchAndAdvance(currentResult);
+                currentResult = matchAndBreaking.getLeft();
+                boolean shouldBreak = matchAndBreaking.getRight();
+
+                if (shouldBreak) {
+                    return currentResult;
                 }
-                currentResult = resultAndBreak.getLeft();
             }
 
-            // Now the matching search is over. If the exact result is needed, we are here because we haven't reached it.
-            // Therefore, fail
             if (isExactNumberNeeded() || matchCount < min) {
                 return Match.fail();
             }
-            // Otherwise, report local success and pass it on to the next chain link
+
             return Match
                     .success(position, nextPosition)
-                    .and(getSiblingMatch(items, nextPosition, Match.success(nextPosition)))
+                    .and(hasSibling() ? getNext().findQuantified(items, nextPosition) : Match.success(nextPosition))
                     .withGroups(groups.getItems());
         }
 
-        private Pair<Match, Boolean> consumeMatchAndAdvance(Match currentResult) {
+        private Match handleZeroLengthMatch(int position) {
+            if (min > 0) {
+                return Match.fail();
+            }
+            if (hasUpstream() && getUpstream().findQuantified(items, position).isSuccess()) {
+                return Match.success(position);
+            }
+            if (hasSibling()) {
+                return getNext().findQuantified(items, position);
+            }
+            return Match.incomplete(position);
+        }
+
+        private Pair<Match, Boolean> handleMatchAndAdvance(Match currentResult) {
             // Add the capturing groups for the current match if needed. (If the current pattern does not support
-            // capturing groups, nothing will occur)
+            // capturing groups, nothing will happen)
             groups.add(matchCount, nextPosition, nextPosition + currentResult.getSize(), currentResult);
 
             matchCount++;
             nextPosition = currentResult.getEnd();
 
+            // We needed an exact number of matches or just reached the ceiling
             if (matchCount >= max) {
-                Match terminalMatch = currentResult.isComplete()
+                Match fullMatch = currentResult.isComplete()
                         ? Match.success(position, nextPosition)
                         : Match.incomplete(position, nextPosition);
-                terminalMatch = terminalMatch.and(getSiblingMatch(items, nextPosition, Match.success(nextPosition)))
+
+                fullMatch = fullMatch
+                        .and(hasSibling() ? getNext().findQuantified(items, nextPosition) : Match.success(nextPosition))
                         .withGroups(groups.getItems());
-                return Pair.of(terminalMatch, true);
+                return Pair.of(fullMatch, true);
 
-            } else if (!isExactNumberNeeded() && matchCount >= min) {
-
-                // There are three reasons why we can break away from the loop early...
-                Match newCurrentMatch = findOne(items, nextPosition);
-                Match siblingMatch = getSiblingMatch(items, nextPosition, Match.fail());
-
-                // 1) The current pattern element is not matched but the sibling is matched
-                if (!newCurrentMatch.isSuccess() && siblingMatch.isSuccess()) {
-                    Match terminal = Match
-                            .success(position, nextPosition)
-                            .and(siblingMatch)
-                            .withGroups(groups.getItems());
-                    return Pair.of(terminal, true);
-                }
-
-                // 2) The current pattern element is matched and there's upstream that will not be matched if
-                //    the cursor advances but it will be matched if the cursor remains
-                //    Else, the current pattern element is NOT matched but there's an upstream match
-                Match upstreamMatch = getUpstreamMatch(items, nextPosition);
-                Match nextUpstreamMatch = getUpstreamMatch(items, nextPosition + 1);
-                if ((newCurrentMatch.isSuccess() && upstreamMatch.isSuccess() && !nextUpstreamMatch.isSuccess())
-                        || (!newCurrentMatch.isSuccess() && upstreamMatch.isSuccess())) {
-                    Match terminal = Match
-                            .success(position, nextPosition)
-                            .withGroups(groups.getItems());
-                    return Pair.of(terminal, true);
-                }
-
-                // 3) The current pattern element is matched and there's a sibling that will not be matched if
-                //    the cursor advances but it will be matched if the cursor remains
-                Match nextSiblingMatch = getSiblingMatch(items, nextPosition + 1, Match.success(nextPosition + 1));
-                if (newCurrentMatch.isSuccess() && siblingMatch.isSuccess() && !nextSiblingMatch.isSuccess()) {
-                    Match terminal = Match
-                            .success(position, nextPosition)
-                            .and(siblingMatch)
-                            .withGroups(groups.getItems());
-                    return Pair.of(terminal, true);
+            // Else, we needed a non-exact number (corresponds to [*] or [+] in RegExp)
+            } else if (matchCount >= min) {
+                Pair<Match, Boolean> matchAndBreaking = handleNextMatch(position, nextPosition);
+                if (matchAndBreaking != null) {
+                    return matchAndBreaking;
                 }
             }
 
-            // Otherwise, retrieve the "ordinary" atomic result
             return Pair.of(findOne(items, nextPosition), false);
         }
 
-        private Match getSiblingMatch(List<T> items, int position, Match defaultResult) {
-            if (getNext() == null) {
-                return defaultResult;
+        private Pair<Match, Boolean> handleNextMatch(int start, int current) {
+            // By default, we perform a greedy search. Therefore, there can be several positions when we could be done
+            // with the current match and move over to testing the next pattern. Some positions can be wrong (i.e. the
+            // matching cannot proceed) even as the current pattern is satisfied. That's why we store the last position
+            // that has proved proper.
+            // If there isn't a position to move to the next pattern, or there isn't the next pattern at all, null is
+            // returned from this method, and we just continue collecting matches from the current pattern in
+            // Finder#handleMatchAndAdvance()
+            int lastBestMatchPosition = -1;
+            int currentMatchPosition = current;
+            Match currentMatch = findOne(items, currentMatchPosition);
+            while (currentMatch.isSuccess()) {
+                int bestMatchCandidate = findContinuationPosition(currentMatchPosition);
+                if (bestMatchCandidate > -1) {
+                    lastBestMatchPosition = bestMatchCandidate;
+                }
+                currentMatch = findOne(items, currentMatchPosition++);
             }
-            return getNext().findQuantified(items, position);
+
+            if (lastBestMatchPosition > -1) {
+                if (hasSibling()) {
+                    Match fullMatch = Match
+                            .success(start, lastBestMatchPosition)
+                            .and(getNext().findQuantified(items, lastBestMatchPosition))
+                            .withGroups(groups.getItems());
+                    return Pair.of(fullMatch, true);
+                }
+                Match fullMatch = Match
+                        .success(start, lastBestMatchPosition)
+                        .withGroups(groups.getItems());
+                return Pair.of(fullMatch, true);
+            }
+            return null;
         }
 
-        private Match getUpstreamMatch(List<T> items, int position) {
-            if (getNext() != null || getUpstream() == null) {
-                return Match.fail();
+        private int findContinuationPosition(int position) {
+            if (hasUpstream() && getUpstream().findQuantified(items, position).isSuccess()) {
+                return position;
             }
-            return getUpstream().findQuantified(items, position);
+            int result = -1;
+            if (!hasSibling()) {
+                return result;
+            }
+            Match siblingMatch = getNext().findQuantified(items, position + 1);
+            if (siblingMatch.isSuccess()) {
+                result = position + 1;
+            } else {
+                siblingMatch = getNext().findQuantified(items, position);
+                if (siblingMatch.isSuccess()) {
+                    result = position;
+                }
+            }
+            if (siblingMatch.isSuccess() && getNext().getUpstream() != null) {
+                return getNext().getUpstream().findQuantified(items, siblingMatch.getEnd()).isSuccess() ? result : -1;
+            }
+            return result;
+        }
+
+        private boolean hasSibling() {
+            return getNext() != null;
+        }
+
+        private boolean hasUpstream() {
+            return !hasSibling() && getUpstream() != null;
         }
 
         private boolean isExactNumberNeeded() {
             return min == max;
         }
-
     }
 }

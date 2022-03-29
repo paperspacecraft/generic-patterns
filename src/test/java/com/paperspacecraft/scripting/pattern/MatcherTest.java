@@ -143,6 +143,41 @@ public class MatcherTest {
     }
 
     @Test
+    public void shouldProcessMatchWithNestedGroups() {
+        String testCase = "abcabacabccbaeacbabc";
+        List<Character> testCaseCollection = testCase.chars().mapToObj(c -> (char) c).collect(Collectors.toList());
+
+        Matcher<Character> matcher = PseudoRegexTestsHelper.getMatcher("c+(\\w+(cb*(a?)))e", testCase);
+        Assert.assertTrue(matcher.find());
+
+        Group group = matcher.getGroup(1);
+        Assert.assertNotNull(group);
+
+        Character[] hits = group.getHitArray(testCaseCollection);
+        Assert.assertNotNull(hits);
+        Assert.assertEquals(
+                "abacabccba",
+                Arrays.stream(hits).map(Object::toString).collect(Collectors.joining()));
+
+        Group nestedGroup = matcher.getGroup(2);
+        Assert.assertNotNull(nestedGroup);
+
+        hits = nestedGroup.getHitArray(testCaseCollection);
+        Assert.assertNotNull(hits);
+        Assert.assertEquals(
+                "cba",
+                Arrays.stream(hits).map(Object::toString).collect(Collectors.joining()));
+
+        Group nestedNestedGroup = matcher.getGroup(3);
+        Assert.assertNotNull(nestedNestedGroup);
+        hits = nestedNestedGroup.getHitArray(testCaseCollection);
+        Assert.assertNotNull(hits);
+        Assert.assertEquals(
+                "a",
+                Arrays.stream(hits).map(Object::toString).collect(Collectors.joining()));
+    }
+
+    @Test
     public void shouldProcessSerialMatches1() {
         Matcher<Character> matcher = PseudoRegexTestsHelper.getMatcher("ab.", "abcabacabccbaacbabc");
         Assert.assertTrue(matcher.find());

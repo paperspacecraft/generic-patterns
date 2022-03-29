@@ -74,7 +74,7 @@ class PseudoRegexTestsHelper {
                 builder = (GenericPattern.Builder<Character>) ((GenericPattern.Token<Character>) builder).ending();
 
             } else if (current == '.') {
-                builder = builder.any().tag("*");
+                builder = builder.any().tag(".");
 
             } else if (isQuantifier(current)) {
                 builder = processQuantifier((GenericPattern.Token<Character>) builder, current);
