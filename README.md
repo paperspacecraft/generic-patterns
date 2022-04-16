@@ -8,7 +8,7 @@ The patterns are created in Java code and have virtually the same semantics as a
 
 * Ability to create and reuse a pattern applicable to an array or a list of any type;
 * Performs a single or a sequential search within the array/list with `Matcher`;
-* Allows specifying an element ("token") within an expression 
+* Allows specifying an element ("token") within an expression by a sample value, a predicate, or a wildcard (roughly analogous to, e.g., `a`, `\w` and `.` in RegExp);
 * Supports token quantifiers (similar to `*`, `?`, and `+` in RegExp);
 * Supports capturing groups;
 * Supports pattern alternation (similar to `[abc]` and `(abc|def)` in RegExp);
